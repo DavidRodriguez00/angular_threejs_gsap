@@ -1,12 +1,10 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { ScrollContainerComponent } from './layout/scroll-container/scroll-container';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
-  templateUrl: './app.html',
-  styleUrl: './app.css'
+  standalone: true,
+  imports: [ScrollContainerComponent],
+  template: `<app-scroll-container></app-scroll-container>`
 })
-export class App {
-  protected readonly title = signal('angular_threejs_gsap');
-}
+export class AppComponent {}

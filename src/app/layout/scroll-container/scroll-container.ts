@@ -1,0 +1,98 @@
+import {
+  Component,
+  AfterViewInit,
+  ViewChild,
+  ElementRef,
+  ChangeDetectionStrategy,
+  DestroyRef,
+  inject,
+  QueryList,
+  ViewChildren,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
+
+import { ScrollService } from '../../core/services/scroll.service';
+import { SceneManagerService, IScene } from '../../core/services/scene-manager.service';
+import { LoggerService } from '../../core/services/logger.service';
+
+import { SceneOneComponent } from '../../scenes/scene-one/scene-one';
+import { SceneTwoComponent } from '../../scenes/scene-two/scene-two';
+import { SceneThreeComponent } from '../../scenes/scene-three/scene-three';
+
+@Component({
+  selector: 'app-scroll-container',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div
+      #scrollContainer
+      class="scroll-container"
+      role="main"
+      aria-label="Main content with scrollable scenes"
+    >
+    <app-scene-three #scene></app-scene-three>
+      <app-scene-one  #scene></app-scene-one>
+      <app-scene-two  #scene></app-scene-two>
+    </div>
+  `,
+  styleUrls: ['./scroll-container.css'],
+  imports: [SceneOneComponent, SceneTwoComponent, SceneThreeComponent],
+})
+export class ScrollContainerComponent implements AfterViewInit {
+  @ViewChild('scrollContainer') private scrollRef!: ElementRef<HTMLElement>;
+  // Single template-ref name — QueryList preserves DOM order
+  @ViewChildren('scene') private sceneList!: QueryList<IScene>;
+
+  private readonly scrollService  = inject(ScrollService);
+  private readonly sceneManager   = inject(SceneManagerService);
+  private readonly logger         = inject(LoggerService);
+  // DestroyRef injected at construction time → safe to use in takeUntilDestroyed
+  private readonly destroyRef     = inject(DestroyRef);
+
+  ngAfterViewInit(): void {
+    const el = this.scrollRef?.nativeElement;
+
+    if (!el) {
+      this.logger.warn('ScrollContainerComponent: scroll ref not available');
+      return;
+    }
+
+    const scenes = this.sceneList.toArray();
+
+    if (scenes.length === 0) {
+      this.logger.warn('ScrollContainerComponent: no scenes found');
+      return;
+    }
+
+    this.scrollService.initializeScroll(el);
+    this.sceneManager.registerScenes(scenes);
+    this.bindScrollToScenes();
+
+    this.logger.info(
+      `ScrollContainerComponent: initialized with ${scenes.length} scenes`,
+    );
+  }
+
+  // ── Private ──────────────────────────────────────────────────────────
+
+  private bindScrollToScenes(): void {
+    // Drive scene transitions from scroll position changes.
+    // SceneManagerService.activateScene already calls show/hide internally,
+    // so no manual updateSceneVisibility is needed here.
+    this.scrollService.currentSection$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(index => this.sceneManager.activateScene(index));
+
+    // Optional: react to scene changes for logging / analytics / aria updates.
+    this.sceneManager.activeIndex$
+      .pipe(
+        // Narrow `number | null` → `number` before use
+        filter((index): index is number => index !== null),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(index => {
+        this.logger.debug(`Active scene → ${index}`);
+      });
+  }
+}

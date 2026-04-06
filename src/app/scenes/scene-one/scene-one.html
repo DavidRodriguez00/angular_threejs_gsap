@@ -1,0 +1,54 @@
+<canvas
+  #canvas
+  class="scene"
+  role="img"
+  aria-label="Solar system scene: interactive glass orrery"
+></canvas>
+
+<!-- Cinematic overlay -->
+<div class="overlay" aria-live="polite" aria-atomic="true">
+
+  <div class="overlay__eyebrow">
+    <span class="overlay__line"></span>
+    <span class="overlay__label">Sol — Inner System</span>
+    <span class="overlay__line"></span>
+  </div>
+
+  <h1 class="overlay__title">
+    <span class="overlay__title-word">Glass</span>
+    <span class="overlay__title-word overlay__title-word--accent">Orrery</span>
+  </h1>
+
+  <p class="overlay__sub">Five planets. One star. Infinite motion.</p>
+
+  <!-- Planet chips — clicking focuses camera on that planet -->
+  <ul class="overlay__planets" role="list" aria-label="Focus on planet">
+    @for (name of planetNames; track name) {
+      <li>
+        <button
+          class="overlay__planet-chip"
+          [class.overlay__planet-chip--active]="activePlanet() === name"
+          [class.overlay__planet-chip--earth]="name === 'Earth'"
+          [attr.aria-pressed]="activePlanet() === name"
+          [attr.aria-label]="'Focus camera on ' + name"
+          (click)="onChipClick(name)"
+        >
+          {{ name }}
+        </button>
+      </li>
+    }
+  </ul>
+
+</div>
+
+<!-- Corner decorations -->
+<div class="corner corner--tl" aria-hidden="true">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <path d="M2 46 L2 2 L46 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</div>
+<div class="corner corner--br" aria-hidden="true">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <path d="M46 2 L46 46 L2 46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</div>
