@@ -27,10 +27,10 @@ export interface LogoConfig {
 
 const DEFAULT_CONFIG: LogoConfig = {
   color:          0xFFE81F,
-  glowBase:       0.05,
+  glowBase:       0.15,
   pulseAmplitude: 0.6,
   floatAmplitude: 0.35,
-  floatSpeed:     1.0,
+  floatSpeed:     2.0,
   mouseDamping:   0.05,
   mouseStrengthX: 0.25,
   mouseStrengthY: 0.20,
@@ -105,8 +105,8 @@ export class SpaceLogoManager {
     this.cfg = { ...DEFAULT_CONFIG, ...config };
 
     // Luz puntual que complementa el emisivo
-    this.light = new THREE.PointLight(this.cfg.color, 0, 600);
-    this.light.position.set(0, 0, 30);
+    this.light = new THREE.PointLight(this.cfg.color, 0.3, 100);
+    this.light.position.set(0, 0, 20);
 
     this.container.add(this.light);
     this.scene.add(this.container);
@@ -200,7 +200,7 @@ export class SpaceLogoManager {
 
     // 1. Aparición volumétrica
     tl.to(this.container.scale, {
-      x: 1, y: 1, z: 1,
+      x: 2, y: 2, z: 2,
       duration: 2.6,
       ease: 'expo.inOut',
     });
@@ -263,7 +263,7 @@ export class SpaceLogoManager {
 
   /** Pulso energético: modula la luz y la intensidad emisiva de los materiales. */
   private updatePulse(t: number): void {
-    const pulse = 0.217 + Math.sin(t * 1.7) * this.cfg.pulseAmplitude;
+    const pulse = 0.194 + Math.sin(t * 1.7) * this.cfg.pulseAmplitude;
 
     this.light.intensity = pulse * 0.3;
 

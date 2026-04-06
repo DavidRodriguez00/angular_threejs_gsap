@@ -1,4 +1,92 @@
-<section class="scene-wrapper">
-    <canvas #spaceCanvas id="space-canvas"></canvas>
-    <div class="scene-overlay"></div>
+<section
+  class="scene-wrapper"
+  role="region"
+  aria-label="Escena galáctica Star Wars"
+>
+
+  <!-- ═══════════════════════════════════════
+       NÚCLEO: Canvas Three.js
+  ════════════════════════════════════════════ -->
+  <canvas #spaceCanvas id="space-canvas" aria-hidden="true"></canvas>
+
+
+  <!-- ═══════════════════════════════════════
+       VIÑETA + GRANO DE HOLOGRAMA
+  ════════════════════════════════════════════ -->
+  <div class="sw-vignette"   aria-hidden="true"></div>
+  <div class="sw-grain"      aria-hidden="true"></div>
+  <div class="sw-scanlines"  aria-hidden="true"></div>
+
+
+
+
+
+  <!-- ═══════════════════════════════════════
+       CORNERS — RETICLE IMPERIAL
+  ════════════════════════════════════════════ -->
+  <div class="sw-reticle" aria-hidden="true">
+    <svg class="reticle-corner reticle-tl" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 22 L2 2 L22 2" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="2" cy="2" r="1.5" fill="currentColor"/>
+    </svg>
+    <svg class="reticle-corner reticle-tr" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 2 L38 2 L38 22" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="38" cy="2" r="1.5" fill="currentColor"/>
+    </svg>
+    <svg class="reticle-corner reticle-bl" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 18 L2 38 L22 38" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="2" cy="38" r="1.5" fill="currentColor"/>
+    </svg>
+    <svg class="reticle-corner reticle-br" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 38 L38 38 L38 18" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="38" cy="38" r="1.5" fill="currentColor"/>
+    </svg>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+       HUD SUPERIOR — HOLOCRON HEADER
+  ════════════════════════════════════════════ -->
+  <header class="sw-header" aria-hidden="true">
+    <div class="sw-header__center">
+      <span class="sw-logo-text">STAR WARS</span>
+      <div class="sw-header-divider"></div>
+      <span class="sw-mono sw-xs sw-dim">A LONG TIME AGO IN A GALAXY FAR, FAR AWAY&hellip;</span>
+    </div>
+  </header>
+
+
+  <!-- ═══════════════════════════════════════
+       HUD INFERIOR — TICKER + ESTADO
+  ════════════════════════════════════════════ -->
+  <footer class="sw-footer" aria-hidden="true">
+
+    <div class="sw-footer__ticker">
+      <span class="sw-ticker-inner sw-mono sw-dim sw-xs">
+        REBEL ALLIANCE &mdash; BATTLE OF YAVIN &mdash; T-65 X-WING STARFIGHTER &mdash; RED FIVE STANDING BY &mdash;
+        USE THE FORCE &mdash; THE FORCE WILL BE WITH YOU, ALWAYS &mdash;&nbsp;&nbsp;
+        REBEL ALLIANCE &mdash; BATTLE OF YAVIN &mdash; T-65 X-WING STARFIGHTER &mdash; RED FIVE STANDING BY &mdash;
+        USE THE FORCE &mdash; THE FORCE WILL BE WITH YOU, ALWAYS &mdash;&nbsp;&nbsp;
+      </span>
+    </div>
+
+    <div class="sw-footer__status">
+      <span class="sw-mono sw-xs sw-dim">RED 5</span>
+      <span class="sw-sep">·</span>
+      <span class="sw-mono sw-xs sw-ok sw-blink">STANDING BY</span>
+      <span class="sw-sep">·</span>
+      <span class="sw-mono sw-xs sw-dim">MAY THE FORCE BE WITH YOU</span>
+    </div>
+
+  </footer>
+
+
+  <!-- ═══════════════════════════════════════
+       SCROLL HINT
+  ════════════════════════════════════════════ -->
+  <div class="sw-scroll-hint" aria-label="Scroll para explorar">
+    <span class="sw-mono sw-xs sw-dim">SCROLL</span>
+    <div class="sw-chevron"></div>
+  </div>
+
 </section>
