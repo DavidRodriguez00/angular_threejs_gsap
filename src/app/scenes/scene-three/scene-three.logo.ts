@@ -26,12 +26,12 @@ export interface LogoConfig {
 }
 
 const DEFAULT_CONFIG: LogoConfig = {
-  color:          0xFFE81F,
-  glowBase:       0.15,
+  color: 0xFFE81F,
+  glowBase: 0.15,
   pulseAmplitude: 0.6,
   floatAmplitude: 0.35,
-  floatSpeed:     2.0,
-  mouseDamping:   0.05,
+  floatSpeed: 2.0,
+  mouseDamping: 0.05,
   mouseStrengthX: 0.25,
   mouseStrengthY: 0.20,
 };
@@ -116,7 +116,7 @@ export class SpaceLogoManager {
   //  GETTERS PÚBLICOS (read-only)
   // ─────────────────────────────────────────────
 
-  get isReady(): boolean   { return this.state === 'ready'; }
+  get isReady(): boolean { return this.state === 'ready'; }
   get isLoading(): boolean { return this.state === 'loading'; }
 
   // ─────────────────────────────────────────────
@@ -124,17 +124,29 @@ export class SpaceLogoManager {
   // ─────────────────────────────────────────────
 
   /**
-   * Carga el GLTF y prepara materiales. Lanza si ya hay una carga en curso
-   * o si el manager fue dispuesto.
-   */
+     * Carga el GLTF, centra su pivote y prepara materiales. 
+     * Lanza si ya hay una carga en curso o si el manager fue dispuesto.
+     */
   async load(path: string): Promise<void> {
-    if (this.state === 'loading')  throw new Error('SpaceLogoManager: load already in progress.');
+    if (this.state === 'loading') throw new Error('SpaceLogoManager: load already in progress.');
     if (this.state === 'disposed') throw new Error('SpaceLogoManager: cannot load after dispose.');
 
     this.state = 'loading';
 
     const gltf = await this.loader.loadAsync(path);
     this.model = gltf.scene;
+
+    // ─────────────────────────────────────────────
+    //  CORRECCIÓN DE PIVOTE (Centrado geométrico)
+    // ─────────────────────────────────────────────
+    const box = new THREE.Box3().setFromObject(this.model);
+    const center = box.getCenter(new THREE.Vector3());
+
+    // Desplazamos la malla en la dirección opuesta a su centro
+    this.model.position.x -= center.x;
+    this.model.position.y -= center.y;
+    this.model.position.z -= center.z;
+    // ─────────────────────────────────────────────
 
     this.applyBiokineticMaterial();
     this.container.add(this.model);
@@ -159,11 +171,11 @@ export class SpaceLogoManager {
     if (!this.model) return;
 
     const mat = new THREE.MeshStandardMaterial({
-      color:             0x000000,
-      emissive:          this.cfg.color,
+      color: 0x000000,
+      emissive: this.cfg.color,
       emissiveIntensity: this.cfg.glowBase,
-      roughness:         0.06,
-      metalness:         0.02,
+      roughness: 0.06,
+      metalness: 0.02,
     });
 
     forEachMesh(this.model, (mesh) => {
@@ -174,8 +186,8 @@ export class SpaceLogoManager {
         mesh.material.forEach((m) => m.dispose());
       }
 
-      mesh.material    = mat.clone(); // clone → cada mesh puede mutar su intensidad
-      mesh.castShadow    = true;
+      mesh.material = mat.clone(); // clone → cada mesh puede mutar su intensidad
+      mesh.castShadow = true;
       mesh.receiveShadow = true;
     });
 
@@ -215,7 +227,7 @@ export class SpaceLogoManager {
     // 3. Encendido de la luz (con un leve retardo)
     tl.to(this.light, {
       intensity: 2.2,
-      duration:  2.4,
+      duration: 2.4,
     }, 0.8);
 
     return tl;
@@ -254,7 +266,7 @@ export class SpaceLogoManager {
   /** Rotación parallax suavizada con el ratón. */
   private updateMouseParallax(mouse: THREE.Vector2): void {
     const { mouseDamping: k, mouseStrengthX: sx, mouseStrengthY: sy } = this.cfg;
-    const targetY =  mouse.x * sx;
+    const targetY = mouse.x * sx;
     const targetX = -mouse.y * sy;
 
     this.container.rotation.y += (targetY - this.container.rotation.y) * k;
