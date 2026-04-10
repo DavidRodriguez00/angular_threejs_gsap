@@ -31,9 +31,9 @@ import { SceneThreeComponent } from '../../scenes/scene-three/scene-three';
       role="main"
       aria-label="Main content with scrollable scenes"
     >
+    <app-scene-one  #scene></app-scene-one>
+    <app-scene-two  #scene></app-scene-two>
     <app-scene-three #scene></app-scene-three>
-      <app-scene-one  #scene></app-scene-one>
-      <app-scene-two  #scene></app-scene-two>
     </div>
   `,
   styleUrls: ['./scroll-container.css'],
@@ -44,11 +44,11 @@ export class ScrollContainerComponent implements AfterViewInit {
   // Single template-ref name — QueryList preserves DOM order
   @ViewChildren('scene') private sceneList!: QueryList<IScene>;
 
-  private readonly scrollService  = inject(ScrollService);
-  private readonly sceneManager   = inject(SceneManagerService);
-  private readonly logger         = inject(LoggerService);
+  private readonly scrollService = inject(ScrollService);
+  private readonly sceneManager = inject(SceneManagerService);
+  private readonly logger = inject(LoggerService);
   // DestroyRef injected at construction time → safe to use in takeUntilDestroyed
-  private readonly destroyRef     = inject(DestroyRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   ngAfterViewInit(): void {
     const el = this.scrollRef?.nativeElement;
@@ -77,22 +77,22 @@ export class ScrollContainerComponent implements AfterViewInit {
   // ── Private ──────────────────────────────────────────────────────────
 
   private bindScrollToScenes(): void {
-    // Drive scene transitions from scroll position changes.
-    // SceneManagerService.activateScene already calls show/hide internally,
-    // so no manual updateSceneVisibility is needed here.
+    // 1. Snapping y activación de escenas (Lo que ya tienes)
     this.scrollService.currentSection$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(index => this.sceneManager.activateScene(index));
 
-    // Optional: react to scene changes for logging / analytics / aria updates.
-    this.sceneManager.activeIndex$
-      .pipe(
-        // Narrow `number | null` → `number` before use
-        filter((index): index is number => index !== null),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(index => {
-        this.logger.debug(`Active scene → ${index}`);
+    // 2. ANIMACIÓN FLUIDA: Enviar progreso a la escena activa
+    this.scrollService.state$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(state => {
+        const activeScene = this.sceneList.toArray()[state.section];
+
+        // Si la escena tiene el método que arregla el logo y cámara
+        if (activeScene && 'updateByProgress' in activeScene) {
+          // state.progress es un valor de 0 a 1 dentro de la sección actual
+          (activeScene as any).updateByProgress(state.progress);
+        }
       });
   }
 }

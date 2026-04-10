@@ -86,6 +86,7 @@ export class SpaceLogoManager {
   // ── Estado interno ─────────────────────────────────────────────────
   private state: LoadState = 'idle';
   private model: THREE.Group | null = null;
+  private basePositionY: number = 0; // Posición Y base controlada por scroll
 
   // ── Infraestructura Three.js ───────────────────────────────────────
   private readonly loader = new GLTFLoader();
@@ -105,8 +106,8 @@ export class SpaceLogoManager {
     this.cfg = { ...DEFAULT_CONFIG, ...config };
 
     // Luz puntual que complementa el emisivo
-    this.light = new THREE.PointLight(this.cfg.color, 0.3, 100);
-    this.light.position.set(0, 0, 20);
+    this.light = new THREE.PointLight(this.cfg.color, 0.3, 10);
+    this.light.position.set(0, 0, 100);
 
     this.container.add(this.light);
     this.scene.add(this.container);
@@ -174,8 +175,8 @@ export class SpaceLogoManager {
       color: 0x000000,
       emissive: this.cfg.color,
       emissiveIntensity: this.cfg.glowBase,
-      roughness: 0.06,
-      metalness: 0.02,
+      roughness: 1,
+      metalness: 2,
     });
 
     forEachMesh(this.model, (mesh) => {
@@ -202,7 +203,7 @@ export class SpaceLogoManager {
    * Secuencia de entrada: aparición orgánica + viaje desde el vacío + encendido.
    * Requiere que `load()` haya completado.
    */
-  intro(onComplete?: () => void): gsap.core.Timeline {
+  intro(onComplete?: () => void): any {
     if (!this.isReady) {
       console.warn('SpaceLogoManager.intro(): model not ready.');
       return gsap.timeline();
@@ -220,7 +221,7 @@ export class SpaceLogoManager {
     // 2. Viaje desde profundidad (simultáneo al scale)
     tl.from(this.container.position, {
       z: -7000,
-      duration: 4.5,
+      duration: 4,
       ease: 'power3.out',
     }, '<');
 
@@ -246,21 +247,33 @@ export class SpaceLogoManager {
   update(t: number, mouse: THREE.Vector2): void {
     if (!this.isReady) return;
 
-    this.updateFloat(t);
     this.updateMouseParallax(mouse);
     this.updatePulse(t);
+  }
+
+  // ─────────────────────────────────────────────
+  //  SETTER PARA POSICIÓN BASE (usado por scroll handler)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Establece la posición Y base que el scroll handler controla.
+   * Los offsets de float se aplican sobre esta base.
+   */
+  setBasePositionY(y: number): void {
+    this.basePositionY = y;
   }
 
   // ─────────────────────────────────────────────
   //  SUBMÓDULOS DE ANIMACIÓN
   // ─────────────────────────────────────────────
 
-  /** Movimiento flotante orgánico en Y. */
-  private updateFloat(t: number): void {
+  /** Calcula el offset de movimiento flotante en Y. */
+  private calculateFloat(t: number): number {
     const { floatAmplitude: amp, floatSpeed: spd } = this.cfg;
-    this.container.position.y =
+    return (
       Math.sin(t * 0.45 * spd) * amp +
-      Math.cos(t * 0.25 * spd) * (amp * 0.4);
+      Math.cos(t * 0.25 * spd) * (amp * 0.4)
+    );
   }
 
   /** Rotación parallax suavizada con el ratón. */

@@ -4,7 +4,8 @@
 export const APP_CONFIG = {
   // Scroll & Animation
   SCROLL_SNAP_DURATION: 0.6,
-  SCROLL_SNAP_DELAY: 150,
+  SCROLL_SNAP_DELAY: 50,
+  SCROLL_SNAP_THRESHOLD: 20,  // px - Minimum scroll to trigger snap to next section
   SCENE_FADE_DURATION: 0.5,
   SCENE_INIT_DELAY: 50,
   
@@ -19,7 +20,7 @@ export const APP_CONFIG = {
   TABLET_BREAKPOINT: 1024,
   
   // Performance
-  DEBOUNCE_DURATION: 150,
+  DEBOUNCE_DURATION: 100,
   RESIZE_OBSERVER_ENABLED: true,
 } as const;
 

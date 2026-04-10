@@ -1,92 +1,54 @@
-<section
-  class="scene-wrapper"
-  role="region"
-  aria-label="Escena galáctica Star Wars"
->
+<canvas
+  #canvas
+  class="scene"
+  role="img"
+  aria-label="Solar system scene: interactive glass orrery"
+></canvas>
 
-  <!-- ═══════════════════════════════════════
-       NÚCLEO: Canvas Three.js
-  ════════════════════════════════════════════ -->
-  <canvas #spaceCanvas id="space-canvas" aria-hidden="true"></canvas>
+<!-- Cinematic overlay -->
+<div class="overlay" aria-live="polite" aria-atomic="true">
 
-
-  <!-- ═══════════════════════════════════════
-       VIÑETA + GRANO DE HOLOGRAMA
-  ════════════════════════════════════════════ -->
-  <div class="sw-vignette"   aria-hidden="true"></div>
-  <div class="sw-grain"      aria-hidden="true"></div>
-  <div class="sw-scanlines"  aria-hidden="true"></div>
-
-
-
-
-
-  <!-- ═══════════════════════════════════════
-       CORNERS — RETICLE IMPERIAL
-  ════════════════════════════════════════════ -->
-  <div class="sw-reticle" aria-hidden="true">
-    <svg class="reticle-corner reticle-tl" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 22 L2 2 L22 2" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="2" cy="2" r="1.5" fill="currentColor"/>
-    </svg>
-    <svg class="reticle-corner reticle-tr" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M18 2 L38 2 L38 22" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="38" cy="2" r="1.5" fill="currentColor"/>
-    </svg>
-    <svg class="reticle-corner reticle-bl" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M2 18 L2 38 L22 38" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="2" cy="38" r="1.5" fill="currentColor"/>
-    </svg>
-    <svg class="reticle-corner reticle-br" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M18 38 L38 38 L38 18" stroke="currentColor" stroke-width="1.5"/>
-      <circle cx="38" cy="38" r="1.5" fill="currentColor"/>
-    </svg>
+  <div class="overlay__eyebrow">
+    <span class="overlay__line"></span>
+    <span class="overlay__label">Sol — Inner System</span>
+    <span class="overlay__line"></span>
   </div>
 
+  <h1 class="overlay__title">
+    <span class="overlay__title-word">Glass</span>
+    <span class="overlay__title-word overlay__title-word--accent">Orrery</span>
+  </h1>
 
-  <!-- ═══════════════════════════════════════
-       HUD SUPERIOR — HOLOCRON HEADER
-  ════════════════════════════════════════════ -->
-  <header class="sw-header" aria-hidden="true">
-    <div class="sw-header__center">
-      <span class="sw-logo-text">STAR WARS</span>
-      <div class="sw-header-divider"></div>
-      <span class="sw-mono sw-xs sw-dim">A LONG TIME AGO IN A GALAXY FAR, FAR AWAY&hellip;</span>
-    </div>
-  </header>
+  <p class="overlay__sub">Five planets. One star. Infinite motion.</p>
 
+  <!-- Planet chips — clicking focuses camera on that planet -->
+  <ul class="overlay__planets" role="list" aria-label="Focus on planet">
+    @for (name of planetNames; track name) {
+      <li>
+        <button
+          class="overlay__planet-chip"
+          [class.overlay__planet-chip--active]="activePlanet() === name"
+          [class.overlay__planet-chip--earth]="name === 'Earth'"
+          [attr.aria-pressed]="activePlanet() === name"
+          [attr.aria-label]="'Focus camera on ' + name"
+          (click)="onChipClick(name)"
+        >
+          {{ name }}
+        </button>
+      </li>
+    }
+  </ul>
 
-  <!-- ═══════════════════════════════════════
-       HUD INFERIOR — TICKER + ESTADO
-  ════════════════════════════════════════════ -->
-  <footer class="sw-footer" aria-hidden="true">
+</div>
 
-    <div class="sw-footer__ticker">
-      <span class="sw-ticker-inner sw-mono sw-dim sw-xs">
-        REBEL ALLIANCE &mdash; BATTLE OF YAVIN &mdash; T-65 X-WING STARFIGHTER &mdash; RED FIVE STANDING BY &mdash;
-        USE THE FORCE &mdash; THE FORCE WILL BE WITH YOU, ALWAYS &mdash;&nbsp;&nbsp;
-        REBEL ALLIANCE &mdash; BATTLE OF YAVIN &mdash; T-65 X-WING STARFIGHTER &mdash; RED FIVE STANDING BY &mdash;
-        USE THE FORCE &mdash; THE FORCE WILL BE WITH YOU, ALWAYS &mdash;&nbsp;&nbsp;
-      </span>
-    </div>
-
-    <div class="sw-footer__status">
-      <span class="sw-mono sw-xs sw-dim">RED 5</span>
-      <span class="sw-sep">·</span>
-      <span class="sw-mono sw-xs sw-ok sw-blink">STANDING BY</span>
-      <span class="sw-sep">·</span>
-      <span class="sw-mono sw-xs sw-dim">MAY THE FORCE BE WITH YOU</span>
-    </div>
-
-  </footer>
-
-
-  <!-- ═══════════════════════════════════════
-       SCROLL HINT
-  ════════════════════════════════════════════ -->
-  <div class="sw-scroll-hint" aria-label="Scroll para explorar">
-    <span class="sw-mono sw-xs sw-dim">SCROLL</span>
-    <div class="sw-chevron"></div>
-  </div>
-
-</section>
+<!-- Corner decorations -->
+<div class="corner corner--tl" aria-hidden="true">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <path d="M2 46 L2 2 L46 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</div>
+<div class="corner corner--br" aria-hidden="true">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <path d="M46 2 L46 46 L2 46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</div>

@@ -91,7 +91,7 @@ function createGlowMaterial(color: number, opacity: number): THREE.SpriteMateria
 
 // ── Class ────────────────────────────────────────────────────────────────────
 
-export class SceneOneThree {
+export class SceneThreeThree {
   private canvas: HTMLCanvasElement;
   private rafId: number | null = null;
   private clock = new THREE.Timer();

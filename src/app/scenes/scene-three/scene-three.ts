@@ -1,254 +1,151 @@
 import {
-    Component,
-    ElementRef,
-    AfterViewInit,
-    inject,
-    PLATFORM_ID,
-    viewChild,
-    NgZone,
-    DestroyRef
+  Component,
+  ElementRef,
+  AfterViewInit,
+  OnDestroy,
+  ViewChild,
+  ChangeDetectionStrategy,
+  inject,
+  NgZone,
+  signal,
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-
-import * as THREE from 'three';
 import gsap from 'gsap';
 
-import { SpaceEngine } from './scene-three.galaxy';
-import { NebulaEngine } from './scene-three.nebula';
-import { SpaceLogoManager } from './scene-three.logo';
-import { animateSpace } from './scene-three.animations';
-import { SpaceScrollHandler } from './scene-three.scroll';
-import { ScrollService } from '../../core/services/scroll.service';
-import { IScene } from '../../core/services/scene-manager.service';
+import { SceneThreeThree, PlanetName, PLANET_NAMES } from './scene-three.three';
+import { SceneThreeAnimations }                       from './scene-three.animations';
+import { LoggerService }                            from '../../core/services/logger.service';
+import { IScene }                                   from '../../core/services/scene-manager.service';
+import { APP_CONFIG }                               from '../../core/constants';
 
 @Component({
-    selector: 'app-scene-three',
-    templateUrl: './scene-three.html',
-    styleUrls: ['./scene-three.css'],
-    standalone: true
+  selector: 'app-scene-three',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './scene-three.html',
+  styleUrls:  ['./scene-three.css'],
 })
-export class SceneThreeComponent implements AfterViewInit, IScene {
-    show(): void {
-        const el = this.hostRef.nativeElement;
+export class SceneThreeComponent implements AfterViewInit, OnDestroy, IScene {
+  @ViewChild('canvas', { static: true }) private canvasRef!: ElementRef<HTMLCanvasElement>;
 
-        this.zone.runOutsideAngular(() => {
-            gsap.killTweensOf(el);
+  // Usamos readonly para datos estáticos
+  readonly planetNames = PLANET_NAMES;
+  
+  /** Signal para el estado de la UI (Chip activo) */
+  readonly activePlanet = signal<PlanetName | null>(null);
 
-            gsap.to(el, {
-                opacity: 1,
-                duration: 0.8,
-                ease: 'power2.out'
-            });
+  private three:      SceneThreeThree      | null = null;
+  private animations: SceneThreeAnimations | null = null;
+  private initTimer?: any;
+  private fadeTween?: gsap.core.Tween;
 
-            // Reactivar render loop si estaba parado
-            if (!this.frame) {
-                this.start();
-            }
-        });
-    }
+  private readonly logger = inject(LoggerService);
+  private readonly zone   = inject(NgZone);
 
-    hide(): void {
-        const el = this.hostRef.nativeElement;
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-        this.zone.runOutsideAngular(() => {
-            gsap.killTweensOf(el);
+  ngAfterViewInit(): void {
+    // Retraso controlado para asegurar que el DOM y el hardware estén listos
+    this.initTimer = setTimeout(() => this.initScene(), APP_CONFIG.SCENE_INIT_DELAY);
+  }
 
-            gsap.to(el, {
-                opacity: 0,
-                duration: 0.8,
-                ease: 'power2.in'
-            });
+  ngOnDestroy(): void {
+    if (this.initTimer) clearTimeout(this.initTimer);
+    this.fadeTween?.kill();
+    this.safeDestroy();
+  }
 
-            // 🔥 Opcional pero MUY recomendable (performance)
-            if (this.frame) {
-                cancelAnimationFrame(this.frame);
-                this.frame = null;
-            }
-        });
-    }
+  // ── IScene Implementation ──────────────────────────────────────────────────
 
-    // ======================
-    // REFS
-    // ======================
-    readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('spaceCanvas');
+  show(): void {
+    const el = this.canvasRef?.nativeElement;
+    if (!el) return;
 
-    private platformId = inject(PLATFORM_ID);
-    private zone = inject(NgZone);
-    private destroyRef = inject(DestroyRef);
-    private hostRef = inject(ElementRef);
-    private scrollService = inject(ScrollService);
-
-    // ======================
-    // ENGINES
-    // ======================
-    private space!: SpaceEngine;
-    private nebula!: NebulaEngine;
-    private logo!: SpaceLogoManager;
-    private scroll!: SpaceScrollHandler;
-
-    // ======================
-    // LOOP
-    // ======================
-    private clock = new THREE.Timer();
-    private frame: number | null = null;
-
-    private mouse = new THREE.Vector2();
-    private targetMouse = new THREE.Vector2();
-
-    private resizeObserver!: ResizeObserver;
-
-    // ======================
-    // LIFECYCLE
-    // ======================
-    ngAfterViewInit(): void {
-        if (!isPlatformBrowser(this.platformId)) return;
-
-        this.zone.runOutsideAngular(() => {
-            this.init();
-            this.listen();
-            this.bindScroll();
-
-            this.destroyRef.onDestroy(() => this.dispose());
-        });
-    }
-
-    // ======================
-    // INIT
-    // ======================
-    private init() {
-        const canvas = this.canvasRef().nativeElement;
-
-        this.space = new SpaceEngine(canvas);
-        this.nebula = new NebulaEngine(this.space.scene, this.space.camera);
-        this.logo = new SpaceLogoManager(this.space.scene);
-
-        this.scroll = new SpaceScrollHandler(
-            this.space.camera,
-            this.logo.container // ✅ ahora coincide con tu manager nuevo
-        );
-
-        this.loadLogo();
-    }
-
-    private async loadLogo() {
-        try {
-            await this.logo.load('/assets/models/starwars.glb');
-
-            this.logo.container.position.set(0, 0, 140);
-
-            // 👇 importante: usar intro() (no playIntro)
-            this.logo.intro(() => {
-                console.log('Logo ready');
-            });
-
-        } catch (err) {
-            console.error('Logo load error:', err);
+    this.zone.runOutsideAngular(() => {
+      this.fadeTween?.kill();
+      this.fadeTween = gsap.to(el, {
+        opacity: 1,
+        duration: APP_CONFIG.SCENE_FADE_DURATION,
+        ease: 'power2.out',
+        onStart: () => {
+          // Aseguramos que las animaciones internas se reanuden
+          this.animations?.play();
         }
+      });
+    });
+  }
+
+  hide(): void {
+    const el = this.canvasRef?.nativeElement;
+    if (!el) return;
+
+    this.zone.runOutsideAngular(() => {
+      this.fadeTween?.kill();
+      this.fadeTween = gsap.to(el, {
+        opacity: 0,
+        duration: APP_CONFIG.SCENE_FADE_DURATION,
+        ease: 'power2.in',
+        onComplete: () => this.animations?.pause()
+      });
+    });
+  }
+
+  // ── Interacciones ─────────────────────────────────────────────────────────
+
+  onChipClick(name: PlanetName): void {
+    if (!this.three) return;
+
+    // Lógica de toggle: si pulsas el mismo, vuelves al sol (null)
+    const nextPlanet = this.activePlanet() === name ? null : name;
+    
+    // Actualizamos el signal (esto refresca la UI de Angular)
+    this.activePlanet.set(nextPlanet);
+
+    // Ejecutamos el movimiento de cámara fuera de la zona de Angular
+    this.zone.runOutsideAngular(() => {
+      if (nextPlanet) {
+        this.three?.focusPlanet(nextPlanet);
+      } else {
+        this.three?.focusSun();
+      }
+    });
+  }
+
+  // ── Gestión de Escena ─────────────────────────────────────────────────────
+
+  private initScene(): void {
+    try {
+      const canvas = this.canvasRef.nativeElement;
+
+      this.zone.runOutsideAngular(() => {
+        // Inicialización del motor gráfico
+        this.three = new SceneThreeThree(canvas);
+        this.three.init();
+
+        // Inicialización de la lógica de animación
+        this.animations = new SceneThreeAnimations(this.three);
+        this.animations.init();
+        
+        // Lanzamos la entrada visual
+        this.show();
+      });
+
+      this.logger.info('Scene One — Glass Orrery (Kinetic Engine) Ready');
+    } catch (err) {
+      this.logger.error('Scene One failed to boot', err);
     }
+  }
 
-    // ======================
-    // SCROLL
-    // ======================
-    private bindScroll() {
-        this.scrollService.sectionChange$
-            ?.pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe(progress => {
-                this.scroll.updateByProgress(progress);
-            });
-    }
-
-    // ======================
-    // LISTENERS
-    // ======================
-    private listen() {
-        this.resizeObserver = new ResizeObserver(() => {
-            this.space.onResize();
-        });
-
-        this.resizeObserver.observe(this.hostRef.nativeElement);
-
-        window.addEventListener('mousemove', this.onMouseMove);
-    }
-
-    private onMouseMove = (e: MouseEvent) => {
-        this.targetMouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
-        this.targetMouse.y = -(e.clientY / window.innerHeight - 0.5) * 0.5;
-    };
-
-    // ======================
-    // LOOP
-    // ======================
-    private start() {
-        this.playIntro();
-        this.loop();
-    }
-
-    private loop = () => {
-        this.frame = requestAnimationFrame(this.loop);
-
-        const time = this.clock.getElapsed();
-
-        this.smoothMouse();
-        this.update(time);
-        this.space.render();
-    };
-
-    private smoothMouse() {
-        this.mouse.x += (this.targetMouse.x - this.mouse.x) * 0.05;
-        this.mouse.y += (this.targetMouse.y - this.mouse.y) * 0.05;
-    }
-
-    private update(time: number) {
-        this.space.update(time);
-        this.nebula.update(time);
-
-        animateSpace(
-            this.space.camera,
-            null as any,
-            this.logo.container,
-            time,
-            this.mouse
-        );
-
-        this.logo.update(time, this.mouse);
-    }
-
-    // ======================
-    // INTRO GLOBAL
-    // ======================
-    private playIntro() {
-        this.space.setExposure(0.1);
-
-        const proxy = { v: 0.1 };
-
-        gsap.to(proxy, {
-            v: 1,
-            duration: 3.2,
-            ease: 'power2.inOut',
-            onUpdate: () => this.space.setExposure(proxy.v)
-        });
-
-        this.space.camera.position.z = 600;
-
-        gsap.to(this.space.camera.position, {
-            z: 150,
-            duration: 4.2,
-            ease: 'expo.inOut'
-        });
-    }
-
-    // ======================
-    // CLEANUP
-    // ======================
-    private dispose() {
-        if (this.frame) cancelAnimationFrame(this.frame);
-
-        window.removeEventListener('mousemove', this.onMouseMove);
-        this.resizeObserver.disconnect();
-
-        this.space.dispose();
-        this.nebula.dispose();
-        this.logo.dispose();
-    }
+  private safeDestroy(): void {
+    this.zone.runOutsideAngular(() => {
+      try {
+        this.animations?.destroy();
+        this.three?.destroy();
+      } catch (err) {
+        this.logger.error('Error during scene cleanup', err);
+      } finally {
+        this.three = null;
+        this.animations = null;
+      }
+    });
+  }
 }

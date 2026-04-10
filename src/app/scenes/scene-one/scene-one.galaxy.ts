@@ -106,7 +106,7 @@ export class SpaceEngine {
         this.scene.background = new THREE.Color(0x000005); // Negro profundo espacial
 
         this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 10000);
-        this.camera.position.set(0, 200, 400);
+        this.camera.position.set(0, 400, 600);
 
         this.renderer = new THREE.WebGLRenderer({
             canvas,
@@ -135,7 +135,7 @@ export class SpaceEngine {
     }
 
     private _initScene(): void {
-        this._buildGalaxy(8000);
+        this._buildGalaxy(7000);
     }
 
     private _buildGalaxy(count: number): void {

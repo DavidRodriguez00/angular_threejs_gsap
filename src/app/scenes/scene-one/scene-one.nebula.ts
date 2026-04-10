@@ -99,7 +99,7 @@ const SHADERS = {
 
 export class NebulaEngine {
     public scene:    THREE.Scene;
-    public camera:   THREE.PerspectiveCamera;
+    // public camera:   THREE.PerspectiveCamera;
     public renderer!: THREE.WebGLRenderer;
     private composer!: EffectComposer;
     private controls!: OrbitControls;
@@ -109,7 +109,7 @@ export class NebulaEngine {
     private dustField: THREE.Points | null = null;
 
     private config = {
-        totalStars: 10000,
+        totalStars: 7000,
         dustCount: 4000,
         galaxyRadius: 1500,
         bulboRadius: 400,   // El tamaño del núcleo 3D
@@ -118,16 +118,16 @@ export class NebulaEngine {
         timeScale: 0.035
     };
 
-    constructor(arg1: HTMLCanvasElement | THREE.Scene, arg2?: THREE.PerspectiveCamera) {
-        if (arg1 instanceof THREE.Scene && arg2 instanceof THREE.PerspectiveCamera) {
+    constructor(arg1: HTMLCanvasElement | THREE.Scene) {
+        if (arg1 instanceof THREE.Scene) {
             this.scene = arg1;
-            this.camera = arg2;
+            // this.camera = arg2;
         } else {
             const canvas = arg1 as HTMLCanvasElement;
             this.scene = new THREE.Scene();
             this.scene.background = new THREE.Color(0x000003);
-            this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 50000);
-            this.camera.position.set(0, 800, 1800);
+            // this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 50000);
+            // this.camera.position.set(0, 800, 1800);
 
             this.renderer = new THREE.WebGLRenderer({
                 canvas,
@@ -138,11 +138,11 @@ export class NebulaEngine {
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-            this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+            // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
             this.controls.enableDamping = true;
 
             this.composer = new EffectComposer(this.renderer);
-            this.composer.addPass(new RenderPass(this.scene, this.camera));
+            // this.composer.addPass(new RenderPass(this.scene, this.camera));
             
             const bloom = new UnrealBloomPass(
                 new THREE.Vector2(window.innerWidth, window.innerHeight), 
@@ -298,8 +298,8 @@ export class NebulaEngine {
     public onResize(): void {
         if (!this.renderer) return;
         const w = window.innerWidth, h = window.innerHeight;
-        this.camera.aspect = w / h;
-        this.camera.updateProjectionMatrix();
+        // this.camera.aspect = w / h;
+        // this.camera.updateProjectionMatrix();
         this.renderer.setSize(w, h);
         this.composer?.setSize(w, h);
     }

@@ -38,17 +38,17 @@ export interface ScrollState {
 })
 export class ScrollService {
   // ── DI ──────────────────────────────────────────────────────────────
-  private readonly destroyRef  = inject(DestroyRef);
-  private readonly platformId  = inject(PLATFORM_ID);
-  private readonly isBrowser   = isPlatformBrowser(this.platformId);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   // ── Internal state ───────────────────────────────────────────────────
   private readonly _state$ = new BehaviorSubject<ScrollState>({
-    position:  0,
-    section:   0,
+    position: 0,
+    section: 0,
     isSnapping: false,
     direction: null,
-    progress:  0,
+    progress: 0,
   });
 
   private readonly _sectionChange$ = new Subject<number>();
@@ -87,7 +87,8 @@ export class ScrollService {
   private scrollElement: HTMLElement | null = null;
   private snapTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private activeGsapTween: gsap.core.Tween | null = null;
-
+  private blockScrollEventsUntil = 0; // timestamp until which to block scroll events
+  private wheelEventHandler: ((e: WheelEvent) => void) | null = null;
   // ────────────────────────────────────────────────────────────────────
   // Public API
   // ────────────────────────────────────────────────────────────────────
@@ -128,23 +129,64 @@ export class ScrollService {
   snapToSection(sectionIndex: number, sectionHeight: number): void {
     if (!this.scrollElement) return;
 
-    const targetScrollTop = sectionIndex * sectionHeight;
-
-    // Avoid redundant animations
-    if (Math.abs(this.scrollElement.scrollTop - targetScrollTop) < 1) return;
-
     this.killActiveSnap();
     this.patchState({ isSnapping: true });
+    
+    // Block scroll events for the full duration of the snap animation
+    // Add 100ms buffer for debounce and event processing
+    const snapDuration = 1; // duration in seconds
+    this.blockScrollEventsUntil = performance.now() + (snapDuration * 1000) + 200;
+    
+    // Attach wheel event handler to prevent interruption during snap
+    this.attachWheelBlocker();
 
     this.activeGsapTween = gsap.to(this.scrollElement, {
-      scrollTop: targetScrollTop,
-      duration: APP_CONFIG.SCROLL_SNAP_DURATION,
+      scrollTop: sectionIndex * sectionHeight,
+      duration: snapDuration,
       ease: 'power2.out',
+      overwrite: 'auto',
       onComplete: () => {
         this.patchState({ isSnapping: false });
         this.activeGsapTween = null;
+        this.blockScrollEventsUntil = 0;
+        this.detachWheelBlocker();
       },
+      onInterrupt: () => {
+        // If animation is interrupted (user scrolls), also reset block
+        this.blockScrollEventsUntil = 0;
+        this.detachWheelBlocker();
+      }
     });
+  }
+
+  /**
+   * Attach wheel event blocker during snap animations.
+   * This prevents user scroll wheel from interfering with the animation.
+   */
+  private attachWheelBlocker(): void {
+    if (!this.isBrowser || !this.scrollElement) return;
+    
+    if (!this.wheelEventHandler) {
+      this.wheelEventHandler = (e: WheelEvent) => {
+        // Only block if still snapping
+        if (this._state$.value.isSnapping) {
+          e.preventDefault();
+        }
+      };
+    }
+
+    this.scrollElement.addEventListener('wheel', this.wheelEventHandler, {
+      passive: false // Must be non-passive to allow preventDefault
+    });
+  }
+
+  /**
+   * Remove wheel event blocker after snap animation completes.
+   */
+  private detachWheelBlocker(): void {
+    if (!this.isBrowser || !this.scrollElement || !this.wheelEventHandler) return;
+
+    this.scrollElement.removeEventListener('wheel', this.wheelEventHandler);
   }
 
   // ────────────────────────────────────────────────────────────────────
@@ -156,30 +198,37 @@ export class ScrollService {
 
     fromEvent(el, 'scroll', { passive: true })
       .pipe(
+        filter(() => {
+          // Block scroll processing during GSAP animation
+          const now = performance.now();
+          return now >= this.blockScrollEventsUntil;
+        }),
         tap(() => this.onScrollRaw(el)),
-        debounceTime(APP_CONFIG.DEBOUNCE_DURATION),
-        filter(() => !this._state$.value.isSnapping),
+        // Removed debounce - snap happens immediately in onScrollRaw()
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => this.scheduleSnap(el.clientHeight));
+      .subscribe();
   }
 
   /**
    * Called on every raw scroll event (before debounce) to keep state reactive.
    */
   private onScrollRaw(el: HTMLElement): void {
-    const previous  = this._state$.value;
-    const position  = el.scrollTop;
-    const height    = el.clientHeight || 1;
-    const section   = Math.round(position / height);
-    const progress  = (position % height) / height;
+    const previous = this._state$.value;
+    const position = el.scrollTop;
+    const height = el.clientHeight || 1;
+    const section = Math.round(position / height);
+    const progress = (position % height) / height;
     const direction =
       position > previous.position ? 'down' :
-      position < previous.position ? 'up'   : previous.direction;
+        position < previous.position ? 'up' : previous.direction;
 
     this.patchState({ position, section, direction, progress });
 
-    if (section !== previous.section) {
+    // If section changed, snap immediately to the new section
+    if (section !== previous.section && !this._state$.value.isSnapping) {
+      this.clearSnapTimeout();
+      this.snapToSection(section, height);
       this._sectionChange$.next(section);
     }
   }
@@ -216,6 +265,7 @@ export class ScrollService {
   ngOnDestroy(): void {
     this.clearSnapTimeout();
     this.killActiveSnap();
+    this.detachWheelBlocker();
     this.scrollElement = null;
   }
 }

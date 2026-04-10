@@ -1,13 +1,14 @@
 import * as THREE from 'three';
+import { SpaceLogoManager } from './scene-one.logo';
 
 // ─────────────────────────────────────────────
 //  TYPES
 // ─────────────────────────────────────────────
 
 export interface ScrollConfig {
-  /** Posición Z de la cámara en progress=0. Default: 120 */
+  /** Posición Z de la cámara en progress=0. Default: 150 */
   camZStart: number;
-  /** Posición Z de la cámara en progress=1. Default: 450 */
+  /** Posición Z de la cámara en progress=1. Default: 400 */
   camZEnd: number;
   /** FOV base de la cámara. Default: 50 */
   fovBase: number;
@@ -28,63 +29,43 @@ export interface ScrollConfig {
 }
 
 const DEFAULT_CONFIG: ScrollConfig = {
-  camZStart:      120,
-  camZEnd:        450,
+  camZStart:      150,
+  camZEnd:        400,
   fovBase:        50,
-  fovDelta:       20,
+  fovDelta:       25,
   logoYStart:     5,
-  logoYEnd:      -25,
+  logoYEnd:       -25,
   logoScaleStart: 1.0,
-  logoScaleEnd:   0.4,
+  logoScaleEnd:   0.35,
   logoRotationY:  Math.PI * 2,
-  logoMaxPitchX:  0.3,
+  logoMaxPitchX:  0.3
 };
 
 // ─────────────────────────────────────────────
-//  HELPERS
+//  HELPER MATH
 // ─────────────────────────────────────────────
 
-/** Interpolación lineal. */
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Clamp de un valor al rango [min, max]. */
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-/** Sanitiza un progress potencialmente NaN o fuera de rango. */
-function sanitizeProgress(p: number): number {
-  return Number.isFinite(p) ? clamp(p, 0, 1) : 0;
-}
-
-// ─────────────────────────────────────────────
-//  CLASS
-// ─────────────────────────────────────────────
+const sanitizeProgress = (p: number): number => {
+  if (isNaN(p) || !isFinite(p)) return 0;
+  return Math.max(0, Math.min(1, p));
+};
 
 /**
- * SpaceScrollHandler
- *
- * Orquesta la coreografía entre cámara y logo 3D en función
- * del progreso de scroll normalizado (0–1).
- *
- * Uso:
- *   const handler = new SpaceScrollHandler(camera, logo, config?)
- *   handler.updateByProgress(scrollProgress)   ← en el scroll listener
+ * Gestiona la coreografía de la Escena 1 basada en el progreso del scroll.
+ * Sincroniza la cámara de PerspectiveCamera y el contenedor del Logo.
  */
 export class SpaceScrollHandler {
-
-  private readonly cfg: ScrollConfig;
+  private cfg: ScrollConfig;
 
   constructor(
-    private readonly camera: THREE.PerspectiveCamera,
-    private readonly logo: THREE.Group,
-    config: Partial<ScrollConfig> = {},
+    private camera: THREE.PerspectiveCamera,
+    private logoContainer: THREE.Group,
+    private logoManager: SpaceLogoManager,
+    config: Partial<ScrollConfig> = {}
   ) {
     this.cfg = { ...DEFAULT_CONFIG, ...config };
-    // Sincroniza la escena al estado inicial sin esperar al primer evento de scroll
-    this.updateByProgress(0);
   }
 
   // ─────────────────────────────────────────────
@@ -93,7 +74,7 @@ export class SpaceScrollHandler {
 
   /**
    * Aplica el estado de la escena correspondiente a `progress`.
-   * @param progress  Valor normalizado [0, 1]; NaN e Infinity se tratan como 0.
+   * @param progress Valor normalizado [0, 1] que viene del ScrollService.
    */
   updateByProgress(progress: number): void {
     const p = sanitizeProgress(progress);
@@ -115,25 +96,21 @@ export class SpaceScrollHandler {
 
   /**
    * Controla posición, escala y rotación del logo.
-   *
-   * La guarda `scale.x === 0` del original se elimina: si el logo
-   * llega con escala 0 (intro pendiente), el scroll no debe
-   * forzar una escala no iniciada. La responsabilidad de la escala
-   * inicial recae en SpaceLogoManager.intro().
    */
   private updateLogo(p: number): void {
-    // Posición vertical (agenda flow)
-    this.logo.position.y = lerp(this.cfg.logoYStart, this.cfg.logoYEnd, p);
+    // Posición vertical (flujo de la agenda)
+    const targetY = lerp(this.cfg.logoYStart, this.cfg.logoYEnd, p);
+    this.logoManager.setBasePositionY(targetY);
 
-    // Escala adaptativa
-    this.logo.scale.setScalar(
+    // Escala adaptativa para que el logo se aleje
+    this.logoContainer.scale.setScalar(
       lerp(this.cfg.logoScaleStart, this.cfg.logoScaleEnd, p)
     );
 
-    // Rotación Y evolutiva
-    this.logo.rotation.y = p * this.cfg.logoRotationY;
+    // Rotación de autor en Y (giro completo)
+    this.logoContainer.rotation.y = p * this.cfg.logoRotationY;
 
-    // Pitch dinámico (efecto de profundidad)
-    this.logo.rotation.x = p * this.cfg.logoMaxPitchX;
+    // Pitch (inclinación) progresiva en X
+    this.logoContainer.rotation.x = p * this.cfg.logoMaxPitchX;
   }
 }
