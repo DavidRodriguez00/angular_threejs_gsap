@@ -27,12 +27,12 @@ export interface LogoConfig {
 
 const DEFAULT_CONFIG: LogoConfig = {
   color: 0xFFE81F,
-  glowBase: 0.15,
+  glowBase: 0.05,
   pulseAmplitude: 0.6,
   floatAmplitude: 0.35,
-  floatSpeed: 2.0,
+  floatSpeed: 1.0,
   mouseDamping: 0.05,
-  mouseStrengthX: 0.25,
+  mouseStrengthX: 0.20,
   mouseStrengthY: 0.20,
 };
 
@@ -266,15 +266,6 @@ export class SpaceLogoManager {
   // ─────────────────────────────────────────────
   //  SUBMÓDULOS DE ANIMACIÓN
   // ─────────────────────────────────────────────
-
-  /** Calcula el offset de movimiento flotante en Y. */
-  private calculateFloat(t: number): number {
-    const { floatAmplitude: amp, floatSpeed: spd } = this.cfg;
-    return (
-      Math.sin(t * 0.45 * spd) * amp +
-      Math.cos(t * 0.25 * spd) * (amp * 0.4)
-    );
-  }
 
   /** Rotación parallax suavizada con el ratón. */
   private updateMouseParallax(mouse: THREE.Vector2): void {

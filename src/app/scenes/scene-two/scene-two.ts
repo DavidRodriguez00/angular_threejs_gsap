@@ -1,250 +1,388 @@
 import {
-  Component,
-  ElementRef,
-  AfterViewInit,
-  OnDestroy,
-  ViewChild,
-  ChangeDetectionStrategy,
-  inject,
-  NgZone,
-  signal,
+    Component,
+    ElementRef,
+    AfterViewInit,
+    inject,
+    PLATFORM_ID,
+    viewChild,
+    NgZone,
+    DestroyRef
 } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+import * as THREE from 'three';
 import gsap from 'gsap';
 
-import { SceneTwoThree, SWPlanetName, SW_PLANET_NAMES } from './scene-two.three';
-import { SceneTwoAnimations }                             from './scene-two.animations';
-import { LoggerService }                                  from '../../core/services/logger.service';
-import { IScene }                                         from '../../core/services/scene-manager.service';
-import { APP_CONFIG }                                     from '../../core/constants';
+import { SpaceEngine } from './scene-two.galaxy';
+import { NebulaEngine } from './scene-two.nebula';
+import { SpaceDeathstarManager } from './scene-two.deathstar';
+import { animateSpace } from './scene-two.animations';
+import { SpaceScrollHandler } from './scene-two.scroll';
+import { ScrollService } from '../../core/services/scroll.service';
+import { IScene } from '../../core/services/scene-manager.service';
 
-// ── Static planet data for HUD readouts ──────────────────────────────────────
-
-interface PlanetHUD {
-  sector:     string;
-  population: string;
-  status:     string;
-  isRebel:    boolean;
-  directive:  string;
+// ─── Estado de la cámara que se guarda al salir y se restaura al entrar ───────
+interface CameraSnapshot {
+    z: number;
+    fov: number;
+    exposure: number;
 }
 
-const SW_HUD_DATA: Record<SWPlanetName, PlanetHUD> = {
-  Coruscant: {
-    sector:     'CORE WORLDS',
-    population: '1 TRIL',
-    status:     'IMPERIAL',
-    isRebel:    false,
-    directive:  'Seat of the Galactic Empire — all loyalty is sworn here'
-  },
-  Tatooine: {
-    sector:     'OUTER RIM',
-    population: '200,000',
-    status:     'NEUTRAL',
-    isRebel:    false,
-    directive:  'Two suns burn over a world the Empire ignores — for now'
-  },
-  Hoth: {
-    sector:     'OUTER RIM',
-    population: 'MINIMAL',
-    status:     '⚠ REBEL BASE',
-    isRebel:    true,
-    directive:  'Echo Base detected — dispatch Blizzard Force immediately'
-  },
-  Endor: {
-    sector:     'OUTER RIM',
-    population: '30 MIL',
-    status:     '⚠ HOSTILE',
-    isRebel:    true,
-    directive:  'Rebel Alliance consolidating forces — fleet mobilised'
-  },
-  Mustafar: {
-    sector:     'OUTER RIM',
-    population: 'CLASSIFIED',
-    status:     'LORD VADER',
-    isRebel:    false,
-    directive:  'Fortress Vader — approach only with express clearance'
-  },
-  Alderaan: {
-    sector:     'CORE WORLDS',
-    population: '2 BIL',
-    status:     '⚠ INSURGENT',
-    isRebel:    true,
-    directive:  'Bail Organa suspected — superweapon authorization pending'
-  },
+// Valores "en reposo" a los que siempre volvemos tras el intro
+const RESTING_CAMERA: CameraSnapshot = {
+    z: 200,
+    fov: 52,
+    exposure: 1.0,
 };
 
-const DEFAULT_DIRECTIVE = 'The power of the dark side is absolute';
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
 @Component({
-  selector: 'app-scene-two',
-  standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './scene-two.html',
-  styleUrls:  ['./scene-two.css'],
+    selector: 'app-scene-two',
+    templateUrl: './scene-two.html',
+    styleUrls: ['./scene-two.css'],
+    standalone: true
 })
-export class SceneTwoComponent implements AfterViewInit, OnDestroy, IScene {
-  @ViewChild('canvas',       { static: true }) private canvasRef!:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('imperialClock',{ static: true }) private clockRef?:   ElementRef<HTMLSpanElement>;
-  @ViewChild('alertOverlay', { static: true }) private alertRef?:   ElementRef<HTMLDivElement>;
+export class SceneTwoComponent implements AfterViewInit, IScene {
 
-  readonly planetNames = SW_PLANET_NAMES;
+    // =========================================================================
+    // IScene – show / hide
+    // =========================================================================
 
-  readonly activePlanet = signal<SWPlanetName | null>(null);
+    show(): void {
+        this.zone.runOutsideAngular(() => {
+            // Reanudar render loop si estaba pausado
+            if (!this.frame) this.loop();
 
-  private three:      SceneTwoThree      | null = null;
-  private animations: SceneTwoAnimations | null = null;
-  private initTimer?:  ReturnType<typeof setTimeout>;
-  private clockTimer?: ReturnType<typeof setInterval>;
-  private fadeTween?:  gsap.core.Tween;
-  private sessionStart = Date.now();
+            if (!this._hasPlayedIntro) {
+                // ── PRIMERA VEZ: secuencia completa ──────────────────────────
+                this._hasPlayedIntro = true;
+                this.playIntro();
+            } else {
+                // ── VISITAS POSTERIORES: entrada suave ───────────────────────
+                this.playEnter();
+            }
+        });
+    }
 
-  private readonly logger = inject(LoggerService);
-  private readonly zone   = inject(NgZone);
+    hide(): void {
+        this.zone.runOutsideAngular(() => {
+            this.playExit(() => {
+                // Pausar render loop para ahorrar GPU mientras no se ve
+                if (this.frame) {
+                    cancelAnimationFrame(this.frame);
+                    this.frame = null;
+                }
+            });
+        });
+    }
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+    // =========================================================================
+    // REFS
+    // =========================================================================
+    readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('spaceCanvas');
 
-  ngAfterViewInit(): void {
-    this.initTimer = setTimeout(() => this.initScene(), APP_CONFIG.SCENE_INIT_DELAY);
-    this.startImperialClock();
-  }
+    private platformId = inject(PLATFORM_ID);
+    private zone = inject(NgZone);
+    private destroyRef = inject(DestroyRef);
+    private hostRef = inject(ElementRef);
+    private scrollService = inject(ScrollService);
 
-  ngOnDestroy(): void {
-    if (this.initTimer)  clearTimeout(this.initTimer);
-    if (this.clockTimer) clearInterval(this.clockTimer);
-    this.fadeTween?.kill();
-    this.safeDestroy();
-  }
+    // =========================================================================
+    // ENGINES
+    // =========================================================================
+    private space!: SpaceEngine;
+    private nebula!: NebulaEngine;
+    private deathstar!: SpaceDeathstarManager;
+    private scroll!: SpaceScrollHandler;
 
-  // ── IScene ────────────────────────────────────────────────────────────────
+    // =========================================================================
+    // LOOP
+    // =========================================================================
+    private clock = new THREE.Timer();
+    private frame: number | null = null;
 
-  show(): void {
-    const el = this.canvasRef?.nativeElement;
-    if (!el) return;
-    this.zone.runOutsideAngular(() => {
-      this.fadeTween?.kill();
-      this.fadeTween = gsap.to(el, {
-        opacity: 1,
-        duration: APP_CONFIG.SCENE_FADE_DURATION,
-        ease: 'power2.out',
-        onStart: () => this.animations?.play()
-      });
-    });
-  }
+    private mouse = new THREE.Vector2();
+    private targetMouse = new THREE.Vector2();
 
-  hide(): void {
-    const el = this.canvasRef?.nativeElement;
-    if (!el) return;
-    this.zone.runOutsideAngular(() => {
-      this.fadeTween?.kill();
-      this.fadeTween = gsap.to(el, {
-        opacity: 0,
-        duration: APP_CONFIG.SCENE_FADE_DURATION,
-        ease: 'power2.in',
-        onComplete: () => this.animations?.pause()
-      });
-    });
-  }
+    private resizeObserver!: ResizeObserver;
 
-  // ── Interaction ───────────────────────────────────────────────────────────
+    // ── Guards de estado ──────────────────────────────────────────────────────
+    /** Evita repetir la secuencia de intro completa en visitas posteriores. */
+    private _hasPlayedIntro = false;
 
-  onChipClick(name: SWPlanetName): void {
-    if (!this.three) return;
+    /** Evita lanzar playEnter/playExit cuando ya hay una transición en curso. */
+    private _transitioning = false;
 
-    const next = this.activePlanet() === name ? null : name;
-    this.activePlanet.set(next);
-    this.updateHUDReadout(next);
+    // =========================================================================
+    // LIFECYCLE
+    // =========================================================================
+    ngAfterViewInit(): void {
+        if (!isPlatformBrowser(this.platformId)) return;
 
-    this.zone.runOutsideAngular(() => {
-      if (next) this.three?.focusPlanet(next);
-      else      this.three?.focusStar();
-    });
-  }
+        this.zone.runOutsideAngular(() => {
+            this.init();
+            this.listen();
+            // this.bindScroll();
 
-  /** Template helper — returns true for rebel planets (for CSS class) */
-  isRebelPlanet(name: SWPlanetName): boolean {
-    return SW_HUD_DATA[name]?.isRebel ?? false;
-  }
+            this.destroyRef.onDestroy(() => this.dispose());
+        });
+    }
 
-  /** Template helper — 3-letter designation tag */
-  getPlanetTag(name: SWPlanetName): string {
-    return name.slice(0, 3).toUpperCase();
-  }
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    private init(): void {
+        const canvas = this.canvasRef().nativeElement;
 
-  // ── Imperial Calendar ─────────────────────────────────────────────────────
+        this.space = new SpaceEngine(canvas);
+        this.nebula = new NebulaEngine(this.space.scene);
+        this.deathstar = new SpaceDeathstarManager(this.space.scene);
 
-  private startImperialClock(): void {
-    const format = () => {
-      const elapsed = (Date.now() - this.sessionStart) / 1000;
-      const yr  = Math.floor(elapsed / 86400);
-      const day = Math.floor((elapsed % 86400) / 3600);
-      const hr  = Math.floor(elapsed % 3600 / 60);
-      return `${yr}.${String(day).padStart(2,'0')}.${String(hr).padStart(2,'0')} ABY`;
+        this.scroll = new SpaceScrollHandler(
+            this.space.camera,
+            this.deathstar.container,
+            this.deathstar
+        );
+
+        this.loaddeathstar();
+    }
+
+    // En scene-two.ts -> loaddeathstar()
+    private async loaddeathstar(): Promise<void> {
+        try {
+            await this.deathstar.load('/assets/models/deathstar.glb');
+            // Si a 2.2 se ve bien, inicialízala cerca de ese valor
+            this.deathstar.container.scale.setScalar(1);
+            this.deathstar.container.position.set(0, 0, 0);
+
+        } catch (err) {
+            console.error('deathstar load error:', err);
+        }
+    }
+
+    // =========================================================================
+    // SCROLL
+    // =========================================================================
+    // private bindScroll() {
+    //     this.scrollService.sectionChange$
+    //         ?.pipe(takeUntilDestroyed(this.destroyRef))
+    //         .subscribe(progress => this.scroll.updateByProgress(progress));
+    // }
+
+    // =========================================================================
+    // LISTENERS
+    // =========================================================================
+    private listen(): void {
+        this.resizeObserver = new ResizeObserver(() => this.space.onResize());
+        this.resizeObserver.observe(this.hostRef.nativeElement);
+        window.addEventListener('mousemove', this.onMouseMove);
+    }
+
+    private onMouseMove = (e: MouseEvent): void => {
+        this.targetMouse.x = (e.clientX / window.innerWidth - 0.5) * 0.5;
+        this.targetMouse.y = -(e.clientY / window.innerHeight - 0.5) * 0.5;
     };
 
-    const el = this.clockRef?.nativeElement;
-    if (el) el.textContent = format();
+    // =========================================================================
+    // LOOP
+    // =========================================================================
+    private loop = (): void => {
+        this.frame = requestAnimationFrame(this.loop);
 
-    this.clockTimer = setInterval(() => {
-      const el = this.clockRef?.nativeElement;
-      if (el) el.textContent = format();
-    }, 60_000);
-  }
+        const time = this.clock.getElapsed();
 
-  // ── HUD Readouts ──────────────────────────────────────────────────────────
+        this.smoothMouse();
+        this.update(time);
+        this.space.render();
+    };
 
-  private updateHUDReadout(planet: SWPlanetName | null): void {
-    const bodyEl   = document.getElementById('swBodyName');
-    const sectorEl = document.getElementById('swSector');
-    const popEl    = document.getElementById('swPop');
-    const statEl   = document.getElementById('swStatus');
-    const dirEl    = document.getElementById('directiveText');
-
-    if (planet) {
-      const d = SW_HUD_DATA[planet];
-      if (bodyEl)   bodyEl.textContent   = planet.toUpperCase();
-      if (sectorEl) sectorEl.textContent = d.sector;
-      if (popEl)    popEl.textContent    = d.population;
-      if (statEl)   statEl.textContent   = d.status;
-      if (dirEl)    dirEl.textContent    = d.directive;
-    } else {
-      if (bodyEl)   bodyEl.textContent   = 'CORUSCANT';
-      if (sectorEl) sectorEl.textContent = 'CORE WORLDS';
-      if (popEl)    popEl.textContent    = '1 TRIL';
-      if (statEl)   statEl.textContent   = 'IMPERIAL';
-      if (dirEl)    dirEl.textContent    = DEFAULT_DIRECTIVE;
+    private smoothMouse(): void {
+        this.mouse.x += (this.targetMouse.x - this.mouse.x) * 0.5;
+        this.mouse.y += (this.targetMouse.y - this.mouse.y) * 0.05;
     }
-  }
 
-  // ── Scene Management ──────────────────────────────────────────────────────
+    private update(time: number): void {
+        this.space.update(time);
+        this.nebula.update(time);
 
-  private initScene(): void {
-    try {
-      const canvas = this.canvasRef.nativeElement;
-      this.zone.runOutsideAngular(() => {
-        this.three      = new SceneTwoThree(canvas);
-        this.three.init();
-        this.animations = new SceneTwoAnimations(this.three);
-        this.animations.init();
-        this.show();
-      });
-      this.logger.info('Scene Two — Galactic Empire · Death Star Orbital Command Ready');
-    } catch (err) {
-      this.logger.error('Scene Two failed to boot', err);
+        animateSpace(
+            this.space.camera,
+            null as any,
+            this.deathstar.container,
+            time,
+            this.mouse
+        );
+
+        this.deathstar.update(time, this.mouse);
     }
-  }
 
-  private safeDestroy(): void {
-    this.zone.runOutsideAngular(() => {
-      try {
-        this.animations?.destroy();
-        this.three?.destroy();
-      } catch (err) {
-        this.logger.error('Scene Two cleanup error', err);
-      } finally {
-        this.three = null;
-        this.animations = null;
-      }
-    });
-  }
+    // =========================================================================
+    // TRANSICIONES
+    // =========================================================================
+
+    /**
+     * INTRO (solo la primera vez).
+     * Cámara viaja desde Z=600 → Z=150, exposición 0.1 → 1.0
+     * y el deathstar hace su animación cinemática completa.
+     */
+    private playIntro(): void {
+        const el = this.hostRef.nativeElement;
+
+        // Aseguramos visibilidad del host
+        gsap.killTweensOf(el);
+        gsap.to(el, { opacity: 1, duration: 0.6, ease: 'power2.out' });
+
+        // Cámara y exposición desde cero
+        this.space.setExposure(0.1);
+        this.space.camera.position.z = 300;
+
+        const proxy = { v: 0.1 };
+        gsap.to(proxy, {
+            v: RESTING_CAMERA.exposure,
+            duration: 3.2,
+            ease: 'power2.inOut',
+            onUpdate: () => this.space.setExposure(proxy.v),
+        });
+
+        gsap.to(this.space.camera.position, {
+            z: RESTING_CAMERA.z,
+            duration: 4.2,
+            ease: 'expo.inOut',
+        });
+
+        // deathstar: esperamos a que esté cargado antes de lanzar intro
+        if (this.deathstar.isReady) {
+            this.deathstar.intro();
+        } else {
+            // Si la carga aún no terminó, esperamos con polling ligero
+            const wait = setInterval(() => {
+                if (this.deathstar.isReady) {
+                    clearInterval(wait);
+                    this.deathstar.intro();
+                }
+            }, 100);
+        }
+    }
+
+    /**
+     * ENTER (visitas 2, 3, …).
+     * Fade-in del host + cámara vuelve a su posición de reposo suavemente
+     * + deathstar aparece con fade de escala desde 0.7 → escala actual.
+     */
+    private playEnter(): void {
+        if (this._transitioning) return;
+        this._transitioning = true;
+
+        const el = this.hostRef.nativeElement;
+        const tl = gsap.timeline({
+            onComplete: () => { this._transitioning = false; }
+        });
+
+        // 1. Host visible
+        tl.to(el, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0);
+
+        // 2. Exposición de galaxia sube desde el valor actual → reposo
+        const proxyIn = { v: this.space['renderer'].toneMappingExposure };
+        tl.to(proxyIn, {
+            v: RESTING_CAMERA.exposure,
+            duration: 1.2,
+            ease: 'power2.out',
+            onUpdate: () => this.space.setExposure(proxyIn.v),
+        }, 0);
+
+        // 3. Cámara vuelve suavemente a su Z de reposo
+        tl.to(this.space.camera.position, {
+            z: RESTING_CAMERA.z,
+            duration: 2,
+            ease: 'power3.out',
+        }, 0);
+
+        // 4. FOV vuelve a reposo
+        const proxyFov = { fov: this.space.camera.fov };
+        tl.to(proxyFov, {
+            fov: RESTING_CAMERA.fov,
+            duration: 1.4,
+            ease: 'power3.out',
+            onUpdate: () => {
+                this.space.camera.fov = proxyFov.fov;
+                this.space.camera.updateProjectionMatrix();
+            },
+        }, 0);
+
+        // 5. deathstar: scale-up suave desde 0.75 (recoge desde donde quedó el exit)
+        tl.to(this.deathstar.container.scale, {
+            x: 1, y: 1, z: 1,
+            duration: 1.0,
+            ease: 'back.out(1.4)',
+        }, 0.1);
+
+        // 6. Opacidad del deathstar (a través de los materiales emisivos)
+        //    Reutilizamos el método de pulso; no hacemos nada extra aquí.
+    }
+
+    /**
+     * EXIT (al salir de la escena).
+     * Inversa visual del enter: deathstar se encoge, exposición baja, host fade-out.
+     * Callback al completar para que el caller pause el render loop.
+     */
+    private playExit(onComplete?: () => void): void {
+        if (this._transitioning) {
+            onComplete?.();
+            return;
+        }
+        this._transitioning = true;
+
+        const el = this.hostRef.nativeElement;
+        const tl = gsap.timeline({
+            maker: true,
+            onComplete: () => {
+                this._transitioning = false;
+                onComplete?.();
+            }
+        });
+
+        // 1. deathstar se encoge y "se aleja"
+        tl.to(this.deathstar.container.scale, {
+            x: 0.75, y: 0.75, z: 0.75,
+            duration: 0.9,
+            ease: 'power2.in',
+        }, 0);
+
+        // 2. Cámara retrocede ligeramente (sensación de alejamiento)
+        tl.to(this.space.camera.position, {
+            z: RESTING_CAMERA.z + 100,
+            duration: 0.9,
+            ease: 'power2.in',
+        }, 0);
+
+        // 3. Exposición baja (universo se oscurece)
+        const proxyOut = { v: this.space['renderer'].toneMappingExposure };
+        tl.to(proxyOut, {
+            v: 0.3,
+            duration: 0.7,
+            ease: 'power2.in',
+            onUpdate: () => this.space.setExposure(proxyOut.v),
+        }, 0);
+
+        // 4. Host fade-out (el más largo marca la duración total de la transición)
+        tl.to(el, {
+            opacity: 0,
+            duration: 0.8,
+            ease: 'power2.in',
+        }, 0.1);
+    }
+
+    // =========================================================================
+    // CLEANUP
+    // =========================================================================
+    private dispose(): void {
+        if (this.frame) cancelAnimationFrame(this.frame);
+
+        window.removeEventListener('mousemove', this.onMouseMove);
+        this.resizeObserver?.disconnect();
+
+        this.space.dispose();
+        this.nebula.dispose();
+        this.deathstar.dispose();
+    }
 }
