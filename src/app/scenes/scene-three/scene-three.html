@@ -1,54 +1,98 @@
-<canvas
-  #canvas
-  class="scene"
-  role="img"
-  aria-label="Solar system scene: interactive glass orrery"
-></canvas>
+<div class="clones-root" #clonesRoot>
 
-<!-- Cinematic overlay -->
-<div class="overlay" aria-live="polite" aria-atomic="true">
+  <!-- Canvas Three.js: cubre TODO el host, absolute -->
+  <canvas #clonesCanvas class="clones-canvas"></canvas>
 
-  <div class="overlay__eyebrow">
-    <span class="overlay__line"></span>
-    <span class="overlay__label">Sol — Inner System</span>
-    <span class="overlay__line"></span>
-  </div>
+  <!-- Track horizontal: contiene los 3 slides a ancho del 300vw -->
+  <div class="slides-track" #slidesTrack>
 
-  <h1 class="overlay__title">
-    <span class="overlay__title-word">Glass</span>
-    <span class="overlay__title-word overlay__title-word--accent">Orrery</span>
-  </h1>
+    <div
+      *ngFor="let vp of viewportDefs; let i = index"
+      class="slide"
+      [class.is-active]="activeIndex === i"
+      [style.--accent]="vp.cssAccent"
+      [style.--accent-rgb]="vp.cssAccentRgb"
+    >
+      <!-- Fondo de gradiente radial por slide -->
+      <div class="slide-bg"></div>
 
-  <p class="overlay__sub">Five planets. One star. Infinite motion.</p>
+      <!-- Ventana 3D: el scissor test renderiza aquí -->
+      <div class="slide-viewport" [id]="vp.domId">
+        <!-- Loader -->
+        <div class="slide-loader" [class.done]="loadedStates[i]">
+          <div class="loader-circle"></div>
+        </div>
+        <!-- Línea de suelo -->
+        <div class="slide-floor"></div>
+        <!-- Glow de suelo -->
+        <div class="slide-floor-glow"></div>
+      </div>
 
-  <!-- Planet chips — clicking focuses camera on that planet -->
-  <ul class="overlay__planets" role="list" aria-label="Focus on planet">
-    @for (name of planetNames; track name) {
-      <li>
-        <button
-          class="overlay__planet-chip"
-          [class.overlay__planet-chip--active]="activePlanet() === name"
-          [class.overlay__planet-chip--earth]="name === 'Earth'"
-          [attr.aria-pressed]="activePlanet() === name"
-          [attr.aria-label]="'Focus camera on ' + name"
-          (click)="onChipClick(name)"
-        >
-          {{ name }}
+      <!-- Info lateral derecho -->
+      <aside class="slide-info">
+
+        <!-- Número de fase -->
+        <div class="info-index">
+          <span class="info-index-num">0{{ i + 1 }}</span>
+          <span class="info-index-of">/ 03</span>
+        </div>
+
+        <div class="info-divider"></div>
+
+        <!-- Metadatos -->
+        <p class="info-era">{{ vp.era }}</p>
+        <h2 class="info-name">{{ vp.name }}</h2>
+        <p class="info-year">{{ vp.year }}</p>
+
+        <div class="info-divider info-divider--sm"></div>
+
+        <!-- Specs -->
+        <ul class="info-specs">
+          <li *ngFor="let s of vp.specs; let j = index" class="spec-item">
+            <span class="spec-n">{{ (j + 1) | number:'2.0-0' }}</span>
+            <span class="spec-text">{{ s }}</span>
+          </li>
+        </ul>
+
+        <!-- Clasificación -->
+        <div class="info-classified">
+          <div class="classified-line"></div>
+          <span>{{ vp.phase }}</span>
+          <div class="classified-line"></div>
+        </div>
+
+      </aside>
+
+      <!-- Navegación prev/next -->
+      <nav class="slide-nav">
+        <button class="nav-btn prev" (click)="prev()" [disabled]="activeIndex === 0" aria-label="Previous">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
         </button>
-      </li>
-    }
-  </ul>
+        <div class="nav-progress">
+          <div
+            *ngFor="let v of viewportDefs; let k = index"
+            class="nav-tick"
+            [class.active]="activeIndex === k"
+            (click)="goTo(k)"
+          ></div>
+        </div>
+        <button class="nav-btn next" (click)="next()" [disabled]="activeIndex === viewportDefs.length - 1" aria-label="Next">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </nav>
 
-</div>
+      <!-- Corner decorations -->
+      <span class="c tl"></span>
+      <span class="c tr"></span>
+      <span class="c bl"></span>
+      <span class="c br"></span>
 
-<!-- Corner decorations -->
-<div class="corner corner--tl" aria-hidden="true">
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-    <path d="M2 46 L2 2 L46 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-  </svg>
-</div>
-<div class="corner corner--br" aria-hidden="true">
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-    <path d="M46 2 L46 46 L2 46" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-  </svg>
+    </div><!-- /slide -->
+
+  </div><!-- /slides-track -->
+
 </div>
