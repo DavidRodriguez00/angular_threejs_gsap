@@ -1,98 +1,103 @@
-<div class="clones-root" #clonesRoot>
+<div class="clones-root">
+      <canvas #clonesCanvas class="clones-canvas"></canvas>
 
-  <!-- Canvas Three.js: cubre TODO el host, absolute -->
-  <canvas #clonesCanvas class="clones-canvas"></canvas>
-
-  <!-- Track horizontal: contiene los 3 slides a ancho del 300vw -->
-  <div class="slides-track" #slidesTrack>
-
-    <div
-      *ngFor="let vp of viewportDefs; let i = index"
-      class="slide"
-      [class.is-active]="activeIndex === i"
-      [style.--accent]="vp.cssAccent"
-      [style.--accent-rgb]="vp.cssAccentRgb"
-    >
-      <!-- Fondo de gradiente radial por slide -->
-      <div class="slide-bg"></div>
-
-      <!-- Ventana 3D: el scissor test renderiza aquí -->
-      <div class="slide-viewport" [id]="vp.domId">
-        <!-- Loader -->
-        <div class="slide-loader" [class.done]="loadedStates[i]">
-          <div class="loader-circle"></div>
-        </div>
-        <!-- Línea de suelo -->
-        <div class="slide-floor"></div>
-        <!-- Glow de suelo -->
-        <div class="slide-floor-glow"></div>
-      </div>
-
-      <!-- Info lateral derecho -->
-      <aside class="slide-info">
-
-        <!-- Número de fase -->
-        <div class="info-index">
-          <span class="info-index-num">0{{ i + 1 }}</span>
-          <span class="info-index-of">/ 03</span>
+      <header class="scene-hud">
+        <div class="hud-block reveal">
+          <p class="hud-kicker">Grand Army Intelligence</p>
+          <h2 class="hud-title">Trooper Evolution Program</h2>
         </div>
 
-        <div class="info-divider"></div>
-
-        <!-- Metadatos -->
-        <p class="info-era">{{ vp.era }}</p>
-        <h2 class="info-name">{{ vp.name }}</h2>
-        <p class="info-year">{{ vp.year }}</p>
-
-        <div class="info-divider info-divider--sm"></div>
-
-        <!-- Specs -->
-        <ul class="info-specs">
-          <li *ngFor="let s of vp.specs; let j = index" class="spec-item">
-            <span class="spec-n">{{ (j + 1) | number:'2.0-0' }}</span>
-            <span class="spec-text">{{ s }}</span>
-          </li>
-        </ul>
-
-        <!-- Clasificación -->
-        <div class="info-classified">
-          <div class="classified-line"></div>
-          <span>{{ vp.phase }}</span>
-          <div class="classified-line"></div>
+        <!-- aria-live añadido para accesibilidad -->
+        <div class="hud-readout reveal" aria-live="polite" aria-atomic="true">
+          <span class="readout-label">ACTIVE PROFILE</span>
+          <span class="readout-value">{{ viewportDefs[activeIndex]?.name }}</span>
         </div>
+      </header>
 
-      </aside>
+      <section class="slides-shell" aria-label="Trooper profiles">
+        <!-- transform dinámico para deslizar los slides físicamente -->
+        <div class="slides-track" #slidesTrack [style.transform]="'translateX(-' + (activeIndex * 100) + '%)'">
+          
+          @for (vp of viewportDefs; track vp.domId; let i = $index) {
+            <article
+              class="slide"
+              [class.is-active]="activeIndex === i"
+              [style.--accent]="vp.cssAccent"
+              [style.--accent-rgb]="vp.cssAccentRgb"
+            >
+              <div class="slide-main">
+                <div class="slide-viewport-wrap">
+                  <div class="slide-viewport" [id]="vp.domId">
+                    <div class="slide-loader" [class.done]="loadedStates[i]">
+                      <div class="loader-circle"></div>
+                    </div>
 
-      <!-- Navegación prev/next -->
-      <nav class="slide-nav">
-        <button class="nav-btn prev" (click)="prev()" [disabled]="activeIndex === 0" aria-label="Previous">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="15 18 9 12 15 6"/>
+                    <div class="slide-floor"></div>
+                    <div class="slide-floor-glow"></div>
+                  </div>
+
+                  <div class="viewport-caption reveal">
+                    <span>UNIT 0{{ i + 1 }}</span>
+                    <span>{{ vp.phase }}</span>
+                  </div>
+                </div>
+
+                <aside class="slide-info">
+                  <p class="info-era reveal">{{ vp.era }}</p>
+                  <h3 class="info-name reveal">{{ vp.name }}</h3>
+                  <p class="info-year reveal">{{ vp.year }}</p>
+
+                  <ul class="info-specs">
+                    @for (s of vp.specs; track s; let j = $index) {
+                      <li class="spec-item reveal">
+                        <span class="spec-n">{{ (j + 1) | number:'2.0-0' }}</span>
+                        <span class="spec-text">{{ s }}</span>
+                      </li>
+                    }
+                  </ul>
+
+                  <div class="info-classified reveal">
+                    <span>Security Level</span>
+                    <strong>{{ vp.phase }}</strong>
+                  </div>
+                </aside>
+              </div>
+            </article>
+          }
+
+        </div>
+      </section>
+
+      <nav class="scene-controls" aria-label="Slide controls">
+        <button class="nav-btn" (click)="prev()" [disabled]="activeIndex === 0" aria-label="Previous profile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+            <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
-        <div class="nav-progress">
-          <div
-            *ngFor="let v of viewportDefs; let k = index"
-            class="nav-tick"
-            [class.active]="activeIndex === k"
-            (click)="goTo(k)"
-          ></div>
+
+        <div class="control-track">
+          @for (v of viewportDefs; track v.domId; let k = $index) {
+            <button
+              class="control-stop"
+              [class.active]="activeIndex === k"
+              [style.--accent-rgb]="v.cssAccentRgb"
+              (click)="goTo(k)"
+              [attr.aria-label]="'Go to ' + v.name"
+            >
+              <span class="stop-index">0{{ k + 1 }}</span>
+              <span class="stop-name">{{ v.name }}</span>
+            </button>
+          }
         </div>
-        <button class="nav-btn next" (click)="next()" [disabled]="activeIndex === viewportDefs.length - 1" aria-label="Next">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polyline points="9 18 15 12 9 6"/>
+
+        <button class="nav-btn" (click)="next()" [disabled]="activeIndex === viewportDefs.length - 1" aria-label="Next profile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+            <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
       </nav>
 
-      <!-- Corner decorations -->
-      <span class="c tl"></span>
-      <span class="c tr"></span>
-      <span class="c bl"></span>
-      <span class="c br"></span>
-
-    </div><!-- /slide -->
-
-  </div><!-- /slides-track -->
-
-</div>
+      <p class="scroll-hint reveal">
+        Usa rueda o flechas para navegar entre perfiles. Al llegar al primero o último, el scroll vertical continúa normal.
+      </p>
+    </div>
