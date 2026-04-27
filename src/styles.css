@@ -99,16 +99,13 @@ body {
   padding: 0;
   height: 100%;
   width: 100%;
-  overflow-y: auto;
-  /* Cambia hidden por auto para permitir scroll */
-  overflow-x: hidden;
+  overflow: hidden;
   font-family: var(--font-family-base);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
   color: var(--color-text-primary);
   background-color: var(--color-bg-primary);
   line-height: 1.6;
-  overflow: hidden;
 }
 
 html,

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SpaceDeathstarManager } from './scene-two.deathstar';
+import { SpaceDeathstarManager } from '../builders/scene-ten.deathstar';
 
 // ─────────────────────────────────────────────
 //  TYPES

@@ -1,10 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500&family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
+/* ─── Design Tokens ──────────────────────────────────────────────────────── */
+
 :host {
+  --accent-rgb: 221 216 204;
+  /* overridden per-slide */
   --active-accent-rgb: 221 216 204;
+  /* set by component via TS */
+
   --font-display: 'Bebas Neue', 'Oswald', 'Arial Narrow', sans-serif;
   --font-body: 'Barlow Condensed', 'Trebuchet MS', sans-serif;
   --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+
+  --transition-slide: transform 0.8s cubic-bezier(0.25, 1, 0.2, 1);
+  --transition-reveal: opacity 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 
   display: block;
   position: relative;
@@ -20,6 +30,7 @@
   font-family: var(--font-body);
 }
 
+/* Subtle grid overlay */
 :host::before {
   content: '';
   position: absolute;
@@ -40,6 +51,7 @@
   z-index: 0;
 }
 
+/* Vignette + accent corner glows */
 :host::after {
   content: '';
   position: absolute;
@@ -51,6 +63,8 @@
   pointer-events: none;
   z-index: 0;
 }
+
+/* ─── Layout Root ─────────────────────────────────────────────────────────── */
 
 .clones-root {
   position: relative;
@@ -69,6 +83,8 @@
   display: block;
   z-index: 1;
 }
+
+/* ─── HUD ─────────────────────────────────────────────────────────────────── */
 
 .scene-hud {
   position: absolute;
@@ -137,6 +153,8 @@
   color: rgb(var(--active-accent-rgb));
 }
 
+/* ─── Slides Shell ────────────────────────────────────────────────────────── */
+
 .slides-shell {
   position: absolute;
   inset: 5.8rem 1rem 7.3rem;
@@ -154,9 +172,10 @@
   height: 100%;
   display: flex;
   will-change: transform;
-  /* Transición fluida entre perfiles */
-  transition: transform 0.8s cubic-bezier(0.25, 1, 0.2, 1);
+  transition: var(--transition-slide);
 }
+
+/* ─── Slide ───────────────────────────────────────────────────────────────── */
 
 .slide {
   position: relative;
@@ -167,6 +186,7 @@
   overflow: hidden;
 }
 
+/* Per-slide radial glow + scan-lines */
 .slide::before {
   content: '';
   position: absolute;
@@ -203,6 +223,8 @@
   gap: 1.05rem;
 }
 
+/* ─── Viewport wrap (the Three.js scissor target) ────────────────────────── */
+
 .slide-viewport-wrap {
   position: relative;
   border: 1px solid rgba(var(--accent-rgb, 255 255 255), 0.28);
@@ -215,14 +237,12 @@
   overflow: hidden;
 }
 
-/* Efecto Scanline sobre viewport */
+/* Scanline overlay */
 .slide-viewport-wrap::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom,
-      transparent 50%,
-      rgba(0, 0, 0, 0.25) 51%);
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.25) 51%);
   background-size: 100% 4px;
   pointer-events: none;
   z-index: 10;
@@ -235,6 +255,7 @@
   overflow: hidden;
 }
 
+/* Floor line + glow */
 .slide-floor-glow {
   position: absolute;
   bottom: 13%;
@@ -264,6 +285,8 @@
       transparent);
   z-index: 3;
 }
+
+/* ─── Loader ──────────────────────────────────────────────────────────────── */
 
 .slide-loader {
   position: absolute;
@@ -295,6 +318,8 @@
   }
 }
 
+/* ─── Viewport Caption ────────────────────────────────────────────────────── */
+
 .viewport-caption {
   position: absolute;
   left: 1rem;
@@ -313,6 +338,8 @@
   text-transform: uppercase;
   color: rgba(219, 233, 255, 0.82);
 }
+
+/* ─── Info Panel ─────────────────────────────────────────────────────────── */
 
 .slide-info {
   position: relative;
@@ -417,6 +444,8 @@
   color: rgb(var(--accent-rgb, 255 255 255));
 }
 
+/* ─── Controls ────────────────────────────────────────────────────────────── */
+
 .scene-controls {
   position: absolute;
   left: 1rem;
@@ -516,6 +545,8 @@
   box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.22);
 }
 
+/* ─── Scroll hint ─────────────────────────────────────────────────────────── */
+
 .scroll-hint {
   position: absolute;
   left: 1rem;
@@ -529,12 +560,12 @@
   color: rgba(196, 214, 245, 0.6);
 }
 
-/* Animaciones Base y Cascada */
+/* ─── Reveal animations ───────────────────────────────────────────────────── */
+
 .reveal {
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: var(--transition-reveal);
 }
 
 .is-active .reveal,
@@ -544,8 +575,9 @@
   transform: translateY(0);
 }
 
+/* Staggered cascade for info panel */
 .is-active .info-era {
-  transition-delay: 0.1s;
+  transition-delay: 0.10s;
 }
 
 .is-active .info-name {
@@ -553,7 +585,7 @@
 }
 
 .is-active .info-year {
-  transition-delay: 0.2s;
+  transition-delay: 0.20s;
 }
 
 .is-active .spec-item:nth-child(1) {
@@ -561,7 +593,7 @@
 }
 
 .is-active .spec-item:nth-child(2) {
-  transition-delay: 0.3s;
+  transition-delay: 0.30s;
 }
 
 .is-active .spec-item:nth-child(3) {
@@ -573,8 +605,10 @@
 }
 
 .is-active .viewport-caption {
-  transition-delay: 0.3s;
+  transition-delay: 0.30s;
 }
+
+/* ─── Responsive ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 1080px) {
   .slides-shell {

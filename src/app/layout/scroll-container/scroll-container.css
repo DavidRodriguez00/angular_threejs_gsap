@@ -7,8 +7,12 @@
 .scroll-container {
   height: 100vh;
   width: 100%;
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
   
   /* CRÍTICO: 'auto' permite que GSAP controle el scroll sin interferencias del navegador */
   scroll-behavior: auto !important;
@@ -50,8 +54,10 @@
 /* Estilo para asegurar que las escenas ocupen el viewport completo */
 app-scene-one, 
 app-scene-two, 
+app-scene-ten, 
 app-scene-three {
   display: block;
+  min-height: 100vh;
   height: 100vh;
   width: 100%;
   position: relative;

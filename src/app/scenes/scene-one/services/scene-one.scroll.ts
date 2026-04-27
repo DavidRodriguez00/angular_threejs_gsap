@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SpaceLogoManager } from './scene-one.logo';
+import { SpaceLogoManager } from '../builders/scene-one.logo';
 
 // ─────────────────────────────────────────────
 //  TYPES

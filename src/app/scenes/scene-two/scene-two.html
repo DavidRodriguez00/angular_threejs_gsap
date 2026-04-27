@@ -1,5 +1,81 @@
-<section class="scene-wrapper">
-    <canvas #spaceCanvas id="space-canvas"></canvas>
-    
-    <div class="scene-overlay"></div>
+<!-- scene-two.component.html -->
+<section class="scene-two-wrapper">
+
+  <!-- Three.js Canvas Container -->
+  <div #canvasContainer class="canvas-container"></div>
+
+  <!-- Loading Screen -->
+  <div class="loading-screen" [class.hidden]="!isLoading">
+    <div class="loading-inner">
+      <div class="loading-sigil">
+        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="40" cy="40" r="36" stroke="#c9a84c" stroke-width="1.5" stroke-dasharray="4 6" />
+          <circle cx="40" cy="40" r="24" stroke="#c9a84c" stroke-width="0.8" opacity="0.5" />
+          <path d="M40 4 L43 18 L40 16 L37 18 Z" fill="#c9a84c" />
+          <path d="M40 76 L43 62 L40 64 L37 62 Z" fill="#c9a84c" />
+          <path d="M4 40 L18 37 L16 40 L18 43 Z" fill="#c9a84c" />
+          <path d="M76 40 L62 37 L64 40 L62 43 Z" fill="#c9a84c" />
+        </svg>
+      </div>
+      <p class="loading-label">CARGANDO SENADO GALÁCTICO</p>
+      <div class="loading-bar-track">
+        <div class="loading-bar-fill" [style.width.%]="loadingProgress"></div>
+      </div>
+      <span class="loading-percent">{{ loadingProgress }}%</span>
+    </div>
+  </div>
+
+  <!-- Cinematic top/bottom bars -->
+  <div class="cinematic-bar top"></div>
+  <div class="cinematic-bar bottom"></div>
+
+  <!-- Vignette overlay -->
+  <div class="vignette"></div>
+
+  <!-- Overlay Text Content -->
+  <div #overlayText class="overlay-text" aria-live="polite">
+
+    <!-- Top badge -->
+    <div class="scene-badge">
+      <span class="badge-line"></span>
+      <span class="badge-text">REPÚBLICA GALÁCTICA · 19 BBY · CORUSCANT</span>
+      <span class="badge-line"></span>
+    </div>
+
+    <!-- Main title block -->
+    <div class="text-block">
+      <h1 #titleEl class="scene-title">
+        <span class="title-line">LA GRAN</span>
+        <span class="title-line accent">TRAICIÓN</span>
+      </h1>
+
+      <p #subtitleEl class="scene-subtitle">
+        En el corazón del Senado Galáctico, diez mil representantes de mundos
+        lejanos aguardan en sus plataformas flotantes. El Canciller Supremo
+        Palpatine, de espaldas al caos que él mismo ha orquestado, se prepara
+        para pronunciar las palabras que borrarán mil años de democracia.
+      </p>
+    </div>
+
+    <!-- Quote -->
+    <blockquote #quoteEl class="scene-quote">
+      <p>
+        "Por la seguridad y la estabilidad, mi República quedará reorganizada…
+        ¡en el primer Imperio Galáctico!"
+      </p>
+      <cite>— Sheev Palpatine, Canciller Supremo</cite>
+    </blockquote>
+
+  </div>
+
+  <!-- Scroll indicator -->
+  <div #scrollIndicator class="scroll-indicator">
+    <span class="scroll-label">CONTINUAR</span>
+    <div class="scroll-arrow">
+      <svg width="16" height="24" viewBox="0 0 16 24" fill="none">
+        <path d="M8 0 L8 20 M2 14 L8 22 L14 14" stroke="#c9a84c" stroke-width="1.5" stroke-linecap="round" />
+      </svg>
+    </div>
+  </div>
+
 </section>

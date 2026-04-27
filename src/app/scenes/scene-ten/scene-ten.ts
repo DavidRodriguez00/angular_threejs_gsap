@@ -14,35 +14,35 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import * as THREE from 'three';
 import gsap from 'gsap';
 
-import { SpaceEngine } from './builders/scene-one.galaxy';
-import { NebulaEngine } from './builders/scene-one.nebula';
-import { SpaceLogoManager } from './builders/scene-one.logo';
-import { animateSpace } from './services/scene-one.animations';
-import { SpaceScrollHandler } from './services/scene-one.scroll';
+import { SpaceEngine } from './builders/scene-ten.galaxy';
+import { NebulaEngine } from './builders/scene-ten.nebula';
+import { SpaceDeathstarManager } from './builders/scene-ten.deathstar';
+import { animateSpace } from './services/scene-ten.animations';
+import { SpaceScrollHandler } from './services/scene-ten.scroll';
 import { ScrollService } from '../../core/services/scroll.service';
 import { IScene } from '../../core/services/scene-manager.service';
 
 // ─── Estado de la cámara que se guarda al salir y se restaura al entrar ───────
 interface CameraSnapshot {
-    z:   number;
+    z: number;
     fov: number;
     exposure: number;
 }
 
 // Valores "en reposo" a los que siempre volvemos tras el intro
 const RESTING_CAMERA: CameraSnapshot = {
-    z:        150,
-    fov:      52,
+    z: 200,
+    fov: 52,
     exposure: 1.0,
 };
 
 @Component({
-    selector: 'app-scene-one',
-    templateUrl: './scene-one.html',
-    styleUrls: ['./scene-one.css'],
+    selector: 'app-scene-ten',
+    templateUrl: './scene-ten.html',
+    styleUrls: ['./scene-ten.css'],
     standalone: true
 })
-export class SceneOneComponent implements AfterViewInit, IScene {
+export class SceneTenComponent implements AfterViewInit, IScene {
 
     // =========================================================================
     // IScene – show / hide
@@ -82,26 +82,26 @@ export class SceneOneComponent implements AfterViewInit, IScene {
     readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('spaceCanvas');
 
     private platformId = inject(PLATFORM_ID);
-    private zone       = inject(NgZone);
+    private zone = inject(NgZone);
     private destroyRef = inject(DestroyRef);
-    private hostRef    = inject(ElementRef);
+    private hostRef = inject(ElementRef);
     private scrollService = inject(ScrollService);
 
     // =========================================================================
     // ENGINES
     // =========================================================================
-    private space!:  SpaceEngine;
+    private space!: SpaceEngine;
     private nebula!: NebulaEngine;
-    private logo!:   SpaceLogoManager;
+    private deathstar!: SpaceDeathstarManager;
     private scroll!: SpaceScrollHandler;
 
     // =========================================================================
     // LOOP
     // =========================================================================
-    private clock       = new THREE.Timer();
+    private clock = new THREE.Timer();
     private frame: number | null = null;
 
-    private mouse       = new THREE.Vector2();
+    private mouse = new THREE.Vector2();
     private targetMouse = new THREE.Vector2();
 
     private resizeObserver!: ResizeObserver;
@@ -134,27 +134,29 @@ export class SceneOneComponent implements AfterViewInit, IScene {
     private init(): void {
         const canvas = this.canvasRef().nativeElement;
 
-        this.space  = new SpaceEngine(canvas);
+        this.space = new SpaceEngine(canvas);
         this.nebula = new NebulaEngine(this.space.scene);
-        this.logo   = new SpaceLogoManager(this.space.scene);
+        this.deathstar = new SpaceDeathstarManager(this.space.scene);
 
         this.scroll = new SpaceScrollHandler(
             this.space.camera,
-            this.logo.container,
-            this.logo
+            this.deathstar.container,
+            this.deathstar
         );
 
-        this.loadLogo();
+        this.loaddeathstar();
     }
 
-    private async loadLogo(): Promise<void> {
+    // En scene-ten.ts -> loaddeathstar()
+    private async loaddeathstar(): Promise<void> {
         try {
-            await this.logo.load('/assets/models/starwars.glb');
-            this.logo.container.position.set(0, 0, 140);
-            // La animación de logo.intro() la lanzamos SÓLO dentro de playIntro()
-            // para que esté coordinada con el fade de exposición.
+            await this.deathstar.load('/assets/models/deathstar.glb');
+            // Si a 2.2 se ve bien, inicialízala cerca de ese valor
+            this.deathstar.container.scale.setScalar(1);
+            this.deathstar.container.position.set(0, 0, 0);
+
         } catch (err) {
-            console.error('Logo load error:', err);
+            console.error('deathstar load error:', err);
         }
     }
 
@@ -177,7 +179,7 @@ export class SceneOneComponent implements AfterViewInit, IScene {
     }
 
     private onMouseMove = (e: MouseEvent): void => {
-        this.targetMouse.x =  (e.clientX / window.innerWidth  - 0.5) * 1.5;
+        this.targetMouse.x = (e.clientX / window.innerWidth - 0.5) * 0.5;
         this.targetMouse.y = -(e.clientY / window.innerHeight - 0.5) * 0.5;
     };
 
@@ -206,12 +208,12 @@ export class SceneOneComponent implements AfterViewInit, IScene {
         animateSpace(
             this.space.camera,
             null as any,
-            this.logo.container,
+            this.deathstar.container,
             time,
             this.mouse
         );
 
-        this.logo.update(time, this.mouse);
+        this.deathstar.update(time, this.mouse);
     }
 
     // =========================================================================
@@ -221,7 +223,7 @@ export class SceneOneComponent implements AfterViewInit, IScene {
     /**
      * INTRO (solo la primera vez).
      * Cámara viaja desde Z=600 → Z=150, exposición 0.1 → 1.0
-     * y el logo hace su animación cinemática completa.
+     * y el deathstar hace su animación cinemática completa.
      */
     private playIntro(): void {
         const el = this.hostRef.nativeElement;
@@ -232,7 +234,7 @@ export class SceneOneComponent implements AfterViewInit, IScene {
 
         // Cámara y exposición desde cero
         this.space.setExposure(0.1);
-        this.space.camera.position.z = 600;
+        this.space.camera.position.z = 300;
 
         const proxy = { v: 0.1 };
         gsap.to(proxy, {
@@ -248,15 +250,15 @@ export class SceneOneComponent implements AfterViewInit, IScene {
             ease: 'expo.inOut',
         });
 
-        // Logo: esperamos a que esté cargado antes de lanzar intro
-        if (this.logo.isReady) {
-            this.logo.intro();
+        // deathstar: esperamos a que esté cargado antes de lanzar intro
+        if (this.deathstar.isReady) {
+            this.deathstar.intro();
         } else {
             // Si la carga aún no terminó, esperamos con polling ligero
             const wait = setInterval(() => {
-                if (this.logo.isReady) {
+                if (this.deathstar.isReady) {
                     clearInterval(wait);
-                    this.logo.intro();
+                    this.deathstar.intro();
                 }
             }, 100);
         }
@@ -265,14 +267,14 @@ export class SceneOneComponent implements AfterViewInit, IScene {
     /**
      * ENTER (visitas 2, 3, …).
      * Fade-in del host + cámara vuelve a su posición de reposo suavemente
-     * + logo aparece con fade de escala desde 0.7 → escala actual.
+     * + deathstar aparece con fade de escala desde 0.7 → escala actual.
      */
     private playEnter(): void {
         if (this._transitioning) return;
         this._transitioning = true;
 
-        const el  = this.hostRef.nativeElement;
-        const tl  = gsap.timeline({
+        const el = this.hostRef.nativeElement;
+        const tl = gsap.timeline({
             onComplete: () => { this._transitioning = false; }
         });
 
@@ -290,37 +292,37 @@ export class SceneOneComponent implements AfterViewInit, IScene {
 
         // 3. Cámara vuelve suavemente a su Z de reposo
         tl.to(this.space.camera.position, {
-            z:        RESTING_CAMERA.z,
+            z: RESTING_CAMERA.z,
             duration: 2,
-            ease:     'power3.out',
+            ease: 'power3.out',
         }, 0);
 
         // 4. FOV vuelve a reposo
         const proxyFov = { fov: this.space.camera.fov };
         tl.to(proxyFov, {
-            fov:      RESTING_CAMERA.fov,
+            fov: RESTING_CAMERA.fov,
             duration: 1.4,
-            ease:     'power3.out',
+            ease: 'power3.out',
             onUpdate: () => {
                 this.space.camera.fov = proxyFov.fov;
                 this.space.camera.updateProjectionMatrix();
             },
         }, 0);
 
-        // 5. Logo: scale-up suave desde 0.75 (recoge desde donde quedó el exit)
-        tl.to(this.logo.container.scale, {
-            x: 2.2, y: 2.2, z: 2.2,
+        // 5. deathstar: scale-up suave desde 0.75 (recoge desde donde quedó el exit)
+        tl.to(this.deathstar.container.scale, {
+            x: 1, y: 1, z: 1,
             duration: 1.0,
-            ease:     'back.out(1.4)',
+            ease: 'back.out(1.4)',
         }, 0.1);
 
-        // 6. Opacidad del logo (a través de los materiales emisivos)
+        // 6. Opacidad del deathstar (a través de los materiales emisivos)
         //    Reutilizamos el método de pulso; no hacemos nada extra aquí.
     }
 
     /**
      * EXIT (al salir de la escena).
-     * Inversa visual del enter: logo se encoge, exposición baja, host fade-out.
+     * Inversa visual del enter: deathstar se encoge, exposición baja, host fade-out.
      * Callback al completar para que el caller pause el render loop.
      */
     private playExit(onComplete?: () => void): void {
@@ -332,40 +334,41 @@ export class SceneOneComponent implements AfterViewInit, IScene {
 
         const el = this.hostRef.nativeElement;
         const tl = gsap.timeline({
+            maker: true,
             onComplete: () => {
                 this._transitioning = false;
                 onComplete?.();
             }
         });
 
-        // 1. Logo se encoge y "se aleja"
-        tl.to(this.logo.container.scale, {
+        // 1. deathstar se encoge y "se aleja"
+        tl.to(this.deathstar.container.scale, {
             x: 0.75, y: 0.75, z: 0.75,
             duration: 0.9,
-            ease:     'power2.in',
+            ease: 'power2.in',
         }, 0);
 
         // 2. Cámara retrocede ligeramente (sensación de alejamiento)
         tl.to(this.space.camera.position, {
             z: RESTING_CAMERA.z + 100,
             duration: 0.9,
-            ease:     'power2.in',
+            ease: 'power2.in',
         }, 0);
 
         // 3. Exposición baja (universo se oscurece)
         const proxyOut = { v: this.space['renderer'].toneMappingExposure };
         tl.to(proxyOut, {
-            v:        0.3,
+            v: 0.3,
             duration: 0.7,
-            ease:     'power2.in',
+            ease: 'power2.in',
             onUpdate: () => this.space.setExposure(proxyOut.v),
         }, 0);
 
         // 4. Host fade-out (el más largo marca la duración total de la transición)
         tl.to(el, {
-            opacity:  0,
+            opacity: 0,
             duration: 0.8,
-            ease:     'power2.in',
+            ease: 'power2.in',
         }, 0.1);
     }
 
@@ -380,6 +383,6 @@ export class SceneOneComponent implements AfterViewInit, IScene {
 
         this.space.dispose();
         this.nebula.dispose();
-        this.logo.dispose();
+        this.deathstar.dispose();
     }
 }

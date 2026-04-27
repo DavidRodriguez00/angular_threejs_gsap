@@ -36,7 +36,7 @@ export const SCENE_CONFIG = {
   },
   TWO: {
     name: 'Scene Two',
-    description: 'Blue sphere with rotating cube',
+    description: 'Rotating cube',
     colors: {
       sphere: 0x0000ff,
       cube: 0x00ff00,
@@ -48,6 +48,14 @@ export const SCENE_CONFIG = {
     colors: {
       sphere: 0xffaa00,
       cylinder: 0x00ffff,
+    },
+  },
+    TEN: {
+    name: 'Scene Ten',
+    description: 'Blue sphere',
+    colors: {
+      sphere: 0x0000ff,
+      cube: 0x00ff00,
     },
   },
 } as const;

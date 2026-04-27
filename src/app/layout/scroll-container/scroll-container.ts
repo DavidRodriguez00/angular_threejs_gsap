@@ -19,6 +19,7 @@ import { LoggerService } from '../../core/services/logger.service';
 import { SceneOneComponent } from '../../scenes/scene-one/scene-one';
 import { SceneTwoComponent } from '../../scenes/scene-two/scene-two';
 import { SceneThreeComponent } from '../../scenes/scene-three/scene-three';
+import { SceneTenComponent } from '../../scenes/scene-ten/scene-ten';
 
 @Component({
   selector: 'app-scroll-container',
@@ -32,12 +33,13 @@ import { SceneThreeComponent } from '../../scenes/scene-three/scene-three';
       aria-label="Main content with scrollable scenes"
     >
     <app-scene-one  #scene></app-scene-one>
-    <app-scene-two  #scene></app-scene-two>
+    <app-scene-two #scene></app-scene-two>
     <app-scene-three #scene></app-scene-three>
+    <app-scene-ten  #scene></app-scene-ten>
     </div>
   `,
   styleUrls: ['./scroll-container.css'],
-  imports: [SceneOneComponent, SceneTwoComponent, SceneThreeComponent],
+  imports: [SceneOneComponent, SceneTwoComponent, SceneThreeComponent, SceneTenComponent],
 })
 export class ScrollContainerComponent implements AfterViewInit {
   @ViewChild('scrollContainer') private scrollRef!: ElementRef<HTMLElement>;
